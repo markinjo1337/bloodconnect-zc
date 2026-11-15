@@ -1,0 +1,95 @@
+rules_version = '2';
+// BloodConnect ZC security rules
+// Paste this whole file into: Firebase console > Firestore Database > Rules > Publish
+// These rules make sure only healthcare staff (and the owner) can see names, phone numbers and screening results.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function profile() { return get(userDoc()).data; }
+    function isStaff() { return signedIn() && exists(userDoc()) && profile().role == 'staff'; }
+    function myDonorCode() { return signedIn() && exists(userDoc()) ? profile().get('donorCode', '') : ''; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // Accounts. New accounts are always 'user'. Make someone staff by editing role in the console.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'user';
+      allow update: if isStaff()
+        || (signedIn() && request.auth.uid == uid
+            && changed().hasOnly(['donorCode'])
+            && resource.data.get('donorCode', '') == ''
+            && getAfter(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.uid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // Public donor info: no names, no numbers.
+    match /donors/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.code == code
+        && request.resource.data.btConfirmed == false
+        && myDonorCode() == '';
+      allow update: if isStaff()
+        || (signedIn() && resource.data.uid == request.auth.uid && changed().hasOnly(['available']));
+      allow delete: if isStaff();
+    }
+
+    // Private donor info: staff and the donor only.
+    match /donorsPrivate/{code} {
+      allow read: if isStaff() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/donors/$(code)).data.uid == request.auth.uid;
+      allow update, delete: if isStaff();
+    }
+
+    // Screening results: staff write; the donor can read their own.
+    match /screenings/{id} {
+      allow read: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow write: if isStaff();
+    }
+
+    // Public request info: no patient names, no numbers.
+    match /requests/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.code == code
+        && request.resource.data.donated.size() == 0
+        && request.resource.data.status in ['open', 'typing'];
+      allow update: if isStaff()
+        // anyone signed in can add alerted donors (matching runs in the browser)
+        || (signedIn() && changed().hasOnly(['notified']))
+        // the requester can cancel their own request
+        || (signedIn() && resource.data.ownerUid == request.auth.uid
+            && changed().hasOnly(['status']) && request.resource.data.status == 'cancelled')
+        // a donor can accept or decline only for themselves
+        || (signedIn() && changed().hasOnly(['responses'])
+            && request.resource.data.responses.diff(resource.data.responses).affectedKeys().hasOnly([myDonorCode()]));
+      allow delete: if isStaff();
+    }
+
+    // Private request info: staff and the requester only.
+    match /requestsPrivate/{code} {
+      allow read: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isStaff();
+    }
+
+    // Hospital directory: everyone can read, staff edit.
+    match /hospitals/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // SMS log: shows Donor IDs only.
+    match /sms/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['at', 'code', 'reqCode', 'text']);
+      allow update, delete: if isStaff();
+    }
+  }
+}

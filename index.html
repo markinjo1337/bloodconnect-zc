@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BloodConnect ZC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --ink:#172031; --muted:#5A6477; --line:#D9DFE7;
+  --blood:#AE0F2A; --blood-ink:#FFFFFF; --blood-soft:#FBE8EB;
+  --amber:#9A5B00; --amber-soft:#FFF1D9; --ok:#1C7350; --ok-soft:#E1F3EA;
+  --focus:#2B59C3; --shadow:0 1px 2px rgba(23,32,49,.06);
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F131B; --surface:#171D28; --ink:#E8ECF2; --muted:#9BA5B6; --line:#283141;
+    --blood:#E5465F; --blood-ink:#FFFFFF; --blood-soft:#3B1820;
+    --amber:#F2AA48; --amber-soft:#3A2A12; --ok:#4FC28F; --ok-soft:#13302A;
+    --focus:#82A4FF; --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F131B; --surface:#171D28; --ink:#E8ECF2; --muted:#9BA5B6; --line:#283141;
+  --blood:#E5465F; --blood-ink:#FFFFFF; --blood-soft:#3B1820;
+  --amber:#F2AA48; --amber-soft:#3A2A12; --ok:#4FC28F; --ok-soft:#13302A;
+  --focus:#82A4FF; --shadow:none; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 "Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3{font-family:"Bricolage Grotesque","Instrument Sans",system-ui,sans-serif;line-height:1.15;margin:0}
+h2{font-size:1.6rem;font-weight:800;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:600}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:14px;padding:12px 0;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.drop{width:26px;height:26px;flex:none}
+.brand h1{font-size:1.35rem;font-weight:800;letter-spacing:-.02em}
+.brand small{display:block;color:var(--muted);font-size:.78rem;margin-top:1px}
+.viewas{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted)}
+.viewas select{max-width:230px}
+nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:0;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{background:none;border:0;padding:10px 12px;border-bottom:3px solid transparent;color:var(--muted);font-weight:500;white-space:nowrap;cursor:pointer}
+nav button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--blood)}
+nav .count{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--blood);color:var(--blood-ink);font-size:.75rem;font-weight:600;text-align:center}
+
+main.wrap{padding-top:26px;padding-bottom:60px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.head p{color:var(--muted);margin-top:6px;max-width:60ch}
+
+/* blood type tag: the signature element, styled like a blood bag label */
+.bt{display:inline-flex;align-items:stretch;border:2px solid var(--blood);border-radius:6px;overflow:hidden;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;line-height:1;flex:none}
+.bt .abo{background:var(--blood);color:var(--blood-ink);padding:6px 7px 5px;font-size:1.15rem;min-width:2.1em;text-align:center}
+.bt .rh{padding:6px 6px 5px;color:var(--blood);font-size:1.15rem;min-width:1.3em;text-align:center;background:var(--surface)}
+.bt.lg .abo,.bt.lg .rh{font-size:2rem;padding:10px 10px 8px}
+.bt.sm .abo,.bt.sm .rh{font-size:.85rem;padding:3px 5px 2px}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.stats{display:flex;gap:6px 28px;flex-wrap:wrap;color:var(--muted);font-size:.9rem;margin-bottom:18px}
+.stats b{color:var(--ink);font-size:1.05rem;margin-right:4px}
+
+.reqs{display:grid;gap:10px}
+.req{display:flex;gap:16px;align-items:center;padding:14px 16px;text-align:left;width:100%;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.req:hover{border-color:var(--muted)}
+.req .info{flex:1;min-width:0}
+.req .info p{color:var(--muted);font-size:.9rem;margin-top:3px}
+.req .prog{text-align:right;font-size:.85rem;color:var(--muted);flex:none}
+.req .prog span{display:block}
+.req .prog b{color:var(--ink);font-size:1rem;margin-right:4px}
+.urg{display:inline-block;font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:2px}
+.urg.Critical{background:var(--blood-soft);color:var(--blood)}
+.urg.Urgent{background:var(--amber-soft);color:var(--amber)}
+.urg.Scheduled{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.status{font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:2px}
+.status.fulfilled{background:var(--ok-soft);color:var(--ok)}
+.status.cancelled{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+
+.empty{padding:34px 20px;text-align:center;color:var(--muted)}
+.empty .btn{margin-top:14px}
+
+/* forms */
+form{display:grid;gap:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+label{display:grid;gap:6px;font-weight:500;font-size:.92rem}
+label .hint{font-weight:400;color:var(--muted);font-size:.82rem}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+textarea{min-height:76px;resize:vertical}
+fieldset{border:0;padding:0;margin:0}
+legend{font-weight:500;font-size:.92rem;margin-bottom:8px}
+.picker{display:flex;flex-wrap:wrap;gap:8px}
+.picker label{display:block;cursor:pointer}
+.picker input{position:absolute;opacity:0;width:1px;height:1px}
+.picker span{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-weight:600;min-width:52px;text-align:center}
+.picker input:checked+span{background:var(--blood);border-color:var(--blood);color:var(--blood-ink)}
+.picker input:focus-visible+span{outline:2px solid var(--focus);outline-offset:2px}
+.check{display:flex;gap:10px;align-items:flex-start;font-weight:400}
+.check input{width:18px;height:18px;margin-top:2px;flex:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:8px;border:1px solid var(--blood);background:var(--blood);color:var(--blood-ink);font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.sm{padding:6px 11px;font-size:.86rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.formwrap{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start}
+.formwrap .panel{padding:20px}
+.preview{position:sticky;top:120px}
+.preview .big{font-family:"Bricolage Grotesque",sans-serif;font-size:2.6rem;font-weight:800;line-height:1;margin:10px 0 4px}
+.preview p{color:var(--muted);font-size:.9rem}
+.preview .types{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+
+/* detail */
+.back{background:none;border:0;color:var(--muted);padding:0;margin-bottom:14px;cursor:pointer;font-weight:500}
+.detail-top{display:flex;gap:18px;align-items:center;padding:20px;flex-wrap:wrap}
+.detail-top .meta{flex:1;min-width:220px}
+.detail-top .meta p{color:var(--muted);margin-top:4px}
+.meter{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:12px;border:1px solid var(--line)}
+.meter i{display:block;height:100%;background:var(--ok)}
+.section{margin-top:24px}
+.section>h3{margin-bottom:10px}
+.section>p.sub{color:var(--muted);font-size:.88rem;margin:-6px 0 10px}
+.rows{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.row:first-child{border-top:0}
+.row .who{flex:1;min-width:160px}
+.row .who p{color:var(--muted);font-size:.85rem}
+.pill{font-size:.8rem;font-weight:600;padding:3px 9px;border-radius:20px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.pill.accepted{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.pill.declined{color:var(--muted)}
+.pill.donated{background:var(--ok);color:#fff;border-color:transparent}
+.reasons{color:var(--amber);font-size:.84rem}
+
+/* donor inbox */
+.profile{display:flex;gap:16px;align-items:center;padding:18px;flex-wrap:wrap;margin-bottom:22px}
+.profile .meta{flex:1;min-width:200px}
+.profile .meta p{color:var(--muted);font-size:.9rem;margin-top:3px}
+.elig{font-weight:600;font-size:.9rem;margin-top:8px}
+.elig.yes{color:var(--ok)}
+.elig.no{color:var(--amber)}
+.switch{display:flex;align-items:center;gap:8px;font-weight:500;font-size:.9rem;cursor:pointer}
+.switch input{width:18px;height:18px}
+.alert{padding:16px;display:grid;gap:10px;margin-bottom:10px}
+.alert .top{display:flex;gap:12px;align-items:center}
+.alert .top div{flex:1}
+.alert .top p{color:var(--muted);font-size:.88rem}
+.alert .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.contact{background:var(--ok-soft);color:var(--ok);padding:10px 12px;border-radius:8px;font-size:.9rem}
+
+/* rules */
+.matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{padding:9px 6px;text-align:center;border-top:1px solid var(--line);font-size:.92rem}
+thead th{border-top:0;font-weight:600;color:var(--muted);font-size:.82rem}
+tbody th{text-align:left;padding-left:14px;cursor:pointer;white-space:nowrap}
+tbody tr.on{background:var(--blood-soft)}
+td.y{color:var(--ok);font-weight:700}
+td.n{color:var(--line)}
+.rulelist{display:grid;gap:10px;margin-top:10px}
+.rulelist div{padding:14px 16px;display:flex;gap:14px;align-items:baseline}
+.rulelist b{font-family:"Bricolage Grotesque",sans-serif;font-size:1.3rem;min-width:84px}
+.rulelist span{color:var(--muted)}
+
+/* sms */
+.sms{padding:14px 16px;border-top:1px solid var(--line);display:grid;gap:4px}
+.sms:first-child{border-top:0}
+.sms .to{font-size:.85rem;color:var(--muted)}
+.sms .txt{font-size:.92rem}
+.note{color:var(--muted);font-size:.86rem;margin-bottom:12px}
+
+footer{color:var(--muted);font-size:.84rem;padding:24px 0 36px;border-top:1px solid var(--line);display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;align-items:center}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:10px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:760px){
+  .formwrap{grid-template-columns:1fr}
+  .preview{position:static}
+  .grid2{grid-template-columns:1fr}
+  .req{flex-wrap:wrap}
+  .req .prog{text-align:left;width:100%;display:flex;gap:16px}
+
+  .viewas{width:100%}
+  .viewas select{max-width:none;flex:1}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---- v2 additions ---- */
+.hero{padding:28px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px;align-items:center;margin-bottom:22px}
+.hero h2{font-size:2rem}
+.hero p{color:var(--muted);margin-top:10px;max-width:58ch}
+.hero .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.hero .bigtags{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid2b{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{padding:18px;display:grid;gap:6px;align-content:start}
+.card h3{font-size:1.05rem}
+.card p{color:var(--muted);font-size:.92rem}
+.steps{counter-reset:s;display:grid;gap:10px;padding:0;margin:0}
+.steps li{list-style:none;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.steps li::before{counter-increment:s;content:counter(s);font-family:"Bricolage Grotesque",sans-serif;font-weight:800;color:var(--blood);font-size:1.3rem;min-width:1.4em}
+.steps b{display:block}
+.steps span{color:var(--muted);font-size:.9rem}
+.ref{width:100%;border-collapse:collapse;min-width:560px}
+.ref th,.ref td{text-align:left;padding:10px 12px;border-top:1px solid var(--line);font-size:.92rem}
+.ref thead th{border-top:0;color:var(--muted);font-weight:600}
+.callout{padding:14px 16px;border-left:4px solid var(--blood);background:var(--blood-soft);border-radius:8px;font-size:.92rem}
+.callout.info{border-left-color:var(--amber);background:var(--amber-soft)}
+.muted{color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--line);background:var(--bg);color:var(--muted);white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.chip.warn{background:var(--amber-soft);color:var(--amber);border-color:transparent}
+.chip.bad{background:var(--blood-soft);color:var(--blood);border-color:transparent}
+.unit{display:flex;align-items:center;gap:8px}
+.unit input{flex:1;min-width:0}
+.unit span{color:var(--muted);font-size:.85rem;white-space:nowrap}
+.checks{display:grid;gap:8px;margin-top:12px}
+.checks div{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:.9rem;padding:8px 0;border-top:1px solid var(--line)}
+.checks div:first-child{border-top:0}
+.checks small{display:block;color:var(--muted);font-size:.78rem}
+.tti{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.decision{display:flex;flex-wrap:wrap;gap:8px}
+.hist{width:100%;border-collapse:collapse;min-width:900px}
+.hist th,.hist td{padding:9px 10px;border-top:1px solid var(--line);text-align:left;font-size:.86rem;vertical-align:top}
+.hist thead th{border-top:0;color:var(--muted);font-weight:600;white-space:nowrap}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.hosp{padding:16px 18px;display:grid;gap:6px;align-content:start}
+.hosp .top{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.hosp p{font-size:.9rem;color:var(--muted)}
+.hosp a{color:var(--blood);font-weight:600;text-decoration:none}
+.hosp a:hover{text-decoration:underline}
+.hosp .tbd{color:var(--amber);font-style:italic}
+.inline-form{display:grid;gap:12px;padding:16px;margin-top:10px}
+.locked{padding:30px 20px;text-align:center;color:var(--muted)}
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .grid3,.grid2b{grid-template-columns:1fr}
+}
+.idcard{display:inline-grid;gap:6px;justify-items:center;padding:12px 16px;background:#FFFFFF;color:#111111;border-radius:10px;border:1px solid var(--line)}
+.idcard span{font-size:.78rem;color:#555555;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.idcard b{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.18em;font-size:1.05rem;color:#111111}
+.barcode{width:240px;max-width:100%;height:56px;display:block}
+.lookup{display:grid;grid-template-columns:1fr auto;gap:10px 12px;align-items:end;padding:16px 18px;margin:0 0 18px}
+.lookup .lk-msg{grid-column:1/-1}
+.terms{border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px}
+.terms legend{padding:0 6px}
+.termstext{max-height:170px;overflow-y:auto;font-size:.86rem;color:var(--muted);background:var(--bg);border-radius:8px;padding:10px 12px 10px 4px}
+.termstext ol{margin:0;padding-left:24px;display:grid;gap:6px}
+@media (max-width:480px){ .lookup{grid-template-columns:1fr} }
+.acct{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.who-am-i{font-size:.84rem;color:var(--muted)}
+.linkbtn{background:none;border:0;padding:0;color:var(--blood);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
+[hidden]{display:none!important}
+.loading{padding:60px 20px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">
+        <svg class="drop" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c-.4 0-.7.2-.9.5C9 6.2 5 11.3 5 15a7 7 0 0 0 14 0c0-3.7-4-8.8-6.1-12-.2-.3-.5-.5-.9-.5z" fill="var(--blood)"/><path d="M9 15.5a3 3 0 0 0 3 3" stroke="var(--blood-ink)" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+        <div><h1>BloodConnect ZC</h1><small>Blood donor matching for Zamboanga City</small></div>
+      </div>
+      <div class="acct">
+        <label class="viewas" for="viewas" id="viewasWrap" hidden>Viewing as
+          <select id="viewas"></select>
+        </label>
+        <span class="acct" id="acct"></span>
+      </div>
+    </div>
+    <nav id="nav" aria-label="Sections"></nav>
+  </div>
+</header>
+
+<main class="wrap" id="main"><div class="loading">Loading BloodConnect ZC…</div></main>
+
+<div class="wrap">
+  <footer>
+    <span>BloodConnect ZC follows the Data Privacy Act of 2012 (RA 10173). Names and contact numbers are never shown publicly and are visible only to authorized healthcare staff. SMS alerts are recorded in the SMS log.</span>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+/* Firebase libraries (loaded from Google's servers) */
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, onSnapshot, query, where, writeBatch, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+/* Your Firebase project keys are in config.js */
+import { firebaseConfig } from './config.js';
+
+/* =====================================================================
+   SETTINGS: most changes you need are in this section.
+   ===================================================================== */
+const TYPES = ['O-','O+','A-','A+','B-','B+','AB-','AB+'];
+// Red cell compatibility: patient -> donor types that can give to them (ABO + Rh)
+const COMPAT = {
+  'O-':['O-'], 'O+':['O+','O-'], 'A-':['A-','O-'], 'A+':['A+','A-','O+','O-'],
+  'B-':['B-','O-'], 'B+':['B+','B-','O+','O-'], 'AB-':['AB-','A-','B-','O-'],
+  'AB+':['AB+','AB-','A+','A-','B+','B-','O+','O-']
+};
+// EDIT HERE: donor eligibility (age, weight in kg, days between donations)
+// Preliminary donor eligibility (final eligibility is decided by qualified healthcare personnel)
+const RULES = { minAge:18, maxAge:65, minWeight:50, waitDays:90 };
+// EDIT HERE: screening reference ranges (BP, pulse, temperature)
+// Physical examination reference ranges, as provided by our Medical Technology consultant
+const VITALS = { bpSys:[90,160], bpDia:[60,100], pulse:[50,100], tempMax:37.5 };
+const TTI = [
+  {k:'hiv', label:'HIV', short:'HIV'}, {k:'hbsag', label:'Hepatitis B (HBsAg)', short:'HBsAg'}, {k:'hcv', label:'Hepatitis C (HCV)', short:'HCV'},
+  {k:'syphilis', label:'Syphilis', short:'Syphilis'}, {k:'malaria', label:'Malaria', short:'Malaria', optional:true}
+];
+const DECISIONS = { cleared:'Cleared to proceed', evaluation:'Needs further evaluation', deferred:'Deferred' };
+// EDIT HERE: barangay choices in the donor form
+const BARANGAYS = ['Baliwasan','Canelar','Guiwan','Pasonanca','Putik','San Jose Gusu','Santa Maria','Tetuan','Tumaga','Zone IV'];
+const URGENCY = { Critical:'Needed within hours', Urgent:'Needed within 24 hours', Scheduled:'Needed within the week' };
+// EDIT HERE: default hospital list (used only the first time a staff account opens the app;
+// after that, staff edit hospitals inside the app on the Hospitals tab)
+const DEFAULT_HOSPITALS = [
+  {id:'prc', name:'Philippine Red Cross – Zamboanga City Chapter', kind:'Blood service facility', address:'', contact:'PRC Blood Call Center: 143 (nationwide)'},
+  {id:'zcmc', name:'Zamboanga City Medical Center (Hospital Blood Bank)', kind:'Hospital with blood bank', address:'Dr. Evangelista St., Sta. Catalina, Zamboanga City', contact:''},
+  {id:'cmz', name:'Ciudad Medical Zamboanga', kind:'Hospital', address:'', contact:''},
+  {id:'brent', name:'Brent Hospital and Colleges', kind:'Hospital', address:'', contact:''},
+  {id:'zdh', name:'Zamboanga Doctors’ Hospital', kind:'Hospital', address:'', contact:''},
+  {id:'wmmc', name:'West Metro Medical Center', kind:'Hospital', address:'', contact:''}
+];
+// EDIT HERE: the SMS text sent to matched donors (no names or numbers, for privacy)
+const SMS_TEXT = (req, hospital) => `BloodConnect ZC: ${req.urgency} request ${req.code} needs ${req.bloodType} blood (${req.units} unit${req.units>1?'s':''}) at ${hospital}. Your blood type is compatible. Open BloodConnect ZC and sign in to accept or decline. Authorized hospital staff will contact you if you accept.`;
+// The tabs (menu) at the top of the app
+const TABS = [
+  {id:'home', label:'Home'},
+  {id:'requests', label:'Requests'},
+  {id:'request', label:'Request blood'},
+  {id:'register', label:'Become a donor'},
+  {id:'inbox', label:'Donor alerts'},
+  {id:'screening', label:'Donor screening'},
+  {id:'donors', label:'Donors'},
+  {id:'hospitals', label:'Hospitals'},
+  {id:'rules', label:'Matching rules'},
+  {id:'sms', label:'SMS log'}
+];
+
+/* ================= Helpers ================= */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2,9);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toISOString().slice(0,10);
+const daysAgo = n => new Date(Date.now() - n*86400000).toISOString().slice(0,10);
+const yearsAgo = (y, extraDays=0) => { const d = new Date(); d.setFullYear(d.getFullYear()-y); d.setDate(d.getDate()-extraDays); return d.toISOString().slice(0,10); };
+const daysSince = d => d ? Math.floor((Date.now() - new Date(d+'T00:00:00').getTime())/86400000) : Infinity;
+function ageOf(b){
+  if (!b) return null;
+  const d = new Date(b+'T00:00:00'), n = new Date();
+  let a = n.getFullYear() - d.getFullYear();
+  if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--;
+  return a;
+}
+const newId = prefix => prefix + String(Math.floor(Math.random()*1e7)).padStart(7,'0');
+const C39 = {'0':'nnnwwnwnn','1':'wnnwnnnnw','2':'nnwwnnnnw','3':'wnwwnnnnn','4':'nnnwwnnnw','5':'wnnwwnnnn','6':'nnwwwnnnn','7':'nnnwnnwnw','8':'wnnwnnwnn','9':'nnwwnnwnn','*':'nwnnwnwnn'};
+function barcode(code){
+  const N = 2, W = 5, H = 56; let x = 12, bars = '';
+  ('*'+code+'*').split('').forEach(ch => {
+    C39[ch].split('').forEach((e,i) => { const w = e==='w' ? W : N; if (i%2===0) bars += `<rect x="${x}" y="0" width="${w}" height="${H}"/>`; x += w; });
+    x += N;
+  });
+  return `<svg class="barcode" viewBox="0 0 ${x+12} ${H}" role="img" aria-label="Barcode ${code}"><rect width="${x+12}" height="${H}" fill="#fff"/><g fill="#000">${bars}</g></svg>`;
+}
+const idCard = (label, code) => `<div class="idcard"><span>${label}</span>${barcode(code)}<b>${code}</b></div>`;
+const kgToLb = kg => Math.round(kg * 2.2 * 10) / 10;
+const cToF = c => Math.round((c * 9/5 + 32) * 10) / 10;
+function fmtDate(d){ if (!d) return 'never'; return new Date(d.length===10 ? d+'T00:00:00' : d).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}); }
+function fmtDateTime(d){ return new Date(d).toLocaleString('en-PH',{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function ago(t){
+  const m = Math.round((Date.now()-t)/60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  const h = Math.round(m/60); if (h < 24) return h + ' hr ago';
+  const d = Math.round(h/24); return d + (d===1?' day ago':' days ago');
+}
+function tag(type, size=''){
+  if (!type) return `<span class="bt ${size}" aria-label="Blood type not yet known"><span class="abo">?</span></span>`;
+  const abo = type.replace(/[+-]$/,''); const rh = type.endsWith('+') ? '+' : '−';
+  return `<span class="bt ${size}" aria-label="Blood type ${esc(type)}"><span class="abo">${esc(abo)}</span><span class="rh">${rh}</span></span>`;
+}
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(()=>t.classList.remove('show'), 3400);
+}
+const statusChip = r => r.status==='open' ? `<span class="urg ${r.urgency}">${r.urgency}</span>`
+  : r.status==='typing' ? `<span class="urg Urgent">Awaiting blood typing</span>`
+  : `<span class="status ${r.status}">${r.status==='fulfilled'?'Fulfilled':'Cancelled'}</span>`;
+
+/* ================= Screening & matching ================= */
+const has = v => v !== '' && v != null;
+const lastScreening = d => (d.screenings && d.screenings.length) ? d.screenings[d.screenings.length-1] : null;
+function currentWeight(d){ const s = lastScreening(d); return s && has(s.weightKg) ? s.weightKg : d.weight; }
+function vitalFlags(s){
+  const f = [];
+  if (has(s.weightKg) && +s.weightKg < RULES.minWeight) f.push('weight');
+  if (has(s.bpSys) && (+s.bpSys < VITALS.bpSys[0] || +s.bpSys > VITALS.bpSys[1])) f.push('bpSys');
+  if (has(s.bpDia) && (+s.bpDia < VITALS.bpDia[0] || +s.bpDia > VITALS.bpDia[1])) f.push('bpDia');
+  if (has(s.pulse) && (+s.pulse < VITALS.pulse[0] || +s.pulse > VITALS.pulse[1])) f.push('pulse');
+  if (has(s.temp) && +s.temp > VITALS.tempMax) f.push('temp');
+  return f;
+}
+const anyReactive = s => !!(s && s.tti && Object.values(s.tti).includes('Reactive'));
+function suggestDecision(s){
+  if (anyReactive(s)) return 'deferred';
+  if (vitalFlags(s).length) return 'evaluation';
+  return 'cleared';
+}
+// Reasons never reveal which test or result caused a deferral.
+function eligibility(d){
+  const r = [];
+  if (!d.available) r.push('Marked as unavailable');
+  if (d.birthdate !== undefined) {           // full record (healthcare staff or the donor)
+    const a = ageOf(d.birthdate);
+    if (a === null || a < RULES.minAge || a > RULES.maxAge) r.push(`Age must be ${RULES.minAge} to ${RULES.maxAge}`);
+    if (+currentWeight(d) < RULES.minWeight) r.push(`Weight below ${RULES.minWeight} kg`);
+  } else {                                   // public record only: no birthdate or weight is shared
+    const t = today();
+    if (!d.eligFrom || t < d.eligFrom || t >= d.eligUntil) r.push(`Age must be ${RULES.minAge} to ${RULES.maxAge}`);
+    if (d.hold) r.push('Not eligible at this time');
+  }
+  const ds = daysSince(d.lastDonation);
+  if (ds < RULES.waitDays) r.push(`Donated ${ds} days ago, can donate again in ${RULES.waitDays-ds} days`);
+  const s = lastScreening(d);
+  if (s && s.decision === 'deferred') r.push('Deferred at last screening');
+  if (s && s.decision === 'evaluation') r.push('Awaiting further evaluation by medical staff');
+  return r;
+}
+function match(patientType){
+  const ok = COMPAT[patientType] || [];
+  const compatible = state.donors.filter(d => ok.includes(d.bloodType))
+    .sort((a,b) => (b.bloodType===patientType) - (a.bloodType===patientType));
+  return { eligible: compatible.filter(d => !eligibility(d).length), blocked: compatible.filter(d => eligibility(d).length) };
+}
+function hospitalName(r){ const h = state.hospitals.find(x => x.id === r.hospitalId); return h ? h.name : (r.hospitalOther || 'Hospital'); }
+// Adds the donors to the request's alert list and prepares one SMS each (saved by queueSms)
+function notify(req, donors){
+  let n = 0;
+  donors.forEach(d => {
+    if (req.notified.includes(d.code)) return;
+    req.notified.push(d.code); n++;
+    outbox.push({ at:Date.now(), code:d.code, reqCode:req.code, text:SMS_TEXT(req, hospitalName(req)) });
+  });
+  return n;
+}
+
+/* ================= Shell ================= */
+const isStaffRole = () => fb.profile?.role === 'staff';
+const isStaff = () => isStaffRole() && state.viewAs === 'staffhc';
+const isCoord = () => !!fb.user && state.viewAs === 'staff';
+const signedIn = () => !!fb.user;
+// Tabs you can open without signing in. All others ask the user to sign in first.
+const PUBLIC_TABS = ['home','hospitals','rules','account'];
+function me(){ return state.donors.find(d => d.id === state.viewAs) || null; }
+function pendingFor(d){ return d ? state.requests.filter(r => r.status==='open' && r.notified.includes(d.id) && !r.responses[d.id]).length : 0; }
+function renderViewAs(){
+  const sel = $('#viewas'), wrap = $('#viewasWrap'), acct = $('#acct');
+  if (!fb.user) {
+    wrap.hidden = true;
+    acct.innerHTML = `<button class="btn sm" data-tab="account">Sign in</button>`;
+    return;
+  }
+  const code = fb.profile?.donorCode;
+  const opts = isStaffRole() ? [['staffhc','Healthcare staff']]
+    : [['staff','Requester']].concat(code ? [[code, `My donor account (${code})`]] : []);
+  sel.innerHTML = opts.map(([v,l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+  sel.value = state.viewAs;
+  wrap.hidden = opts.length < 2;
+  acct.innerHTML = `<span class="who-am-i">${esc(fb.user.email)}${isStaffRole()?' · <b>Staff</b>':''}</span><button class="btn ghost sm" id="signout">Sign out</button>`;
+}
+function renderNav(){
+  const p = pendingFor(me());
+  const typing = state.requests.filter(r=>r.status==='typing').length;
+  $('#nav').innerHTML = TABS.map(t => `<button data-tab="${t.id}" ${state.tab===t.id?'aria-current="page"':''}>${t.label}${t.id==='inbox'&&p?`<span class="count">${p}</span>`:''}${t.id==='requests'&&typing&&isStaff()?`<span class="count">${typing}</span>`:''}</button>`).join('');
+}
+function go(tab, detail=null){
+  state.tab = tab; state.detail = detail;
+  try { history.replaceState(null,'','#'+tab); } catch(e) {}
+  render(); window.scrollTo(0,0);
+}
+function render(){
+  if (!fb.ready) return;
+  renderViewAs(); renderNav();
+  if (state.tab === 'account' || (!signedIn() && !PUBLIC_TABS.includes(state.tab))) {
+    $('#main').innerHTML = viewAccount();
+    return bindAccount();
+  }
+  const v = { home:viewHome, requests: state.detail ? viewDetail : viewRequests, request:viewRequest, register:viewRegister, inbox:viewInbox, screening:viewScreening, donors:viewDonors, hospitals:viewHospitals, rules:viewRules, sms:viewSms }[state.tab] || viewHome;
+  $('#main').innerHTML = v();
+  bind[state.tab]?.();
+}
+
+/* ================= Sign in / Create account ================= */
+function viewAccount(){
+  if (fb.user) return `<div class="head"><div><h2>Your account</h2><p>Signed in as ${esc(fb.user.email)}.</p></div></div>`;
+  const mode = state.authMode || 'signin';
+  return `<div class="head"><div><h2>${mode==='signin'?'Sign in':'Create an account'}</h2>
+      <p>Sign in to request blood, register as a donor, and see your alerts. Your information is protected under the Data Privacy Act of 2012 (RA 10173).</p></div></div>
+    <form class="panel inline-form authform" id="authform" style="max-width:440px">
+      <label>Email<input name="email" type="email" autocomplete="email" required></label>
+      <label>Password<input name="password" type="password" minlength="6" autocomplete="${mode==='signin'?'current-password':'new-password'}" required></label>
+      ${mode==='signup' ? `<label>Confirm password<input name="password2" type="password" minlength="6" autocomplete="new-password" required></label>` : ''}
+      <p class="reasons" id="autherr" role="alert"></p>
+      <button class="btn" type="submit">${mode==='signin'?'Sign in':'Create account'}</button>
+      <p class="hint">${mode==='signin'
+        ? `No account yet? <button type="button" class="linkbtn" data-authmode="signup">Create one</button> · <button type="button" class="linkbtn" id="forgot">Forgot password?</button>`
+        : `Already have an account? <button type="button" class="linkbtn" data-authmode="signin">Sign in</button>`}</p>
+      <p class="hint">Healthcare staff: create an account first, then ask the system administrator to give your account staff access.</p>
+    </form>`;
+}
+function bindAccount(){
+  const f = $('#authform'); if (!f) return;
+  const err = m => { $('#autherr').textContent = m; };
+  const nice = e => ({ 'auth/invalid-credential':'Wrong email or password.', 'auth/wrong-password':'Wrong email or password.', 'auth/user-not-found':'No account with that email.',
+    'auth/email-already-in-use':'An account with that email already exists. Sign in instead.', 'auth/weak-password':'Use at least 6 characters for the password.',
+    'auth/invalid-email':'Enter a valid email address.', 'auth/too-many-requests':'Too many tries. Wait a moment and try again.' }[e.code] || e.message);
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(f));
+    try {
+      if ((state.authMode||'signin') === 'signin') await signInWithEmailAndPassword(auth, v.email.trim(), v.password);
+      else {
+        if (v.password !== v.password2) return err('The passwords do not match.');
+        await createUserWithEmailAndPassword(auth, v.email.trim(), v.password);
+      }
+      state.authMode = 'signin'; toast('Signed in.');
+    } catch(x) { err(nice(x)); }
+  });
+  $('#forgot')?.addEventListener('click', async () => {
+    const email = f.email.value.trim(); if (!email) return err('Type your email first, then click “Forgot password?”.');
+    try { await sendPasswordResetEmail(auth, email); toast('Password reset link sent to your email.'); } catch(x) { err(nice(x)); }
+  });
+}
+
+/* ================= Views ================= */
+function lookupBox(title='Look up your record'){
+  return `<form class="panel lookup" data-lookup="1">
+    <label>${title}<input name="code" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="Enter your 10-digit Donor ID or Request ID"></label>
+    <button class="btn" type="submit">Search</button>
+    <p class="hint lk-msg" role="alert">Only people who know the ID can open the record.</p>
+  </form>`;
+}
+function termsBox(kind){
+  const donor = [
+    'The information you give must be true and complete. False information about your health or blood type can put patients at risk.',
+    'Registering does not guarantee that you can donate. Final eligibility is decided by qualified healthcare personnel after screening.',
+    'Blood donation through BloodConnect ZC is voluntary and unpaid, in line with Republic Act No. 7719. No payment or reward is given for blood.',
+    'You may decline any request, withdraw an acceptance, or stop receiving alerts at any time.',
+    'Your personal and health information is processed under the Data Privacy Act of 2012 (RA 10173). It is used only for donor matching and screening, is visible only to authorized healthcare staff, and is never shown publicly; you are identified only by your Donor ID. You may request access to, correction of, or deletion of your data at any time.'];
+  const req = [
+    'The information you give about the patient must be true. False or fake requests will be removed.',
+    'BloodConnect ZC does not guarantee that a donor will be found. Keep coordinating with the hospital or the Philippine Red Cross.',
+    'Donated blood is voluntary and free. Buying or selling blood is prohibited under Republic Act No. 7719.',
+    'Authorized healthcare staff, not the requester, contact matched donors. Donor identities and contact numbers stay private.',
+    'The patient’s and your personal and health information is processed under the Data Privacy Act of 2012 (RA 10173). It is visible only to authorized healthcare staff and is never shown publicly; the request is identified only by its Request ID.'];
+  const items = kind==='donor' ? donor : req;
+  const checks = kind==='donor' ? [
+      ['agreeTerms','I have read and agree to the Terms and Conditions.'],
+      ['agreePrivacy','I consent to the collection and processing of my personal and health information in accordance with the Data Privacy Act of 2012 (RA 10173).'],
+      ['agreeWilling','I am voluntarily and willingly registering as a blood donor.']]
+    : [
+      ['agreeTerms','I have read and agree to the Terms and Conditions.'],
+      ['agreePrivacy','I consent to the collection and processing of the patient’s and my personal and health information in accordance with the Data Privacy Act of 2012 (RA 10173).'],
+      ['agreeWilling','I confirm that I am the patient or am authorized by the patient or their family to make this request, and I willingly agree to be contacted by healthcare staff.']];
+  return `<fieldset class="terms"><legend>Terms and Conditions and Data Privacy</legend>
+    <div class="termstext"><ol>${items.map(t=>`<li>${t}</li>`).join('')}</ol></div>
+    ${checks.map(([n,t])=>`<label class="check"><input type="checkbox" name="${n}"><span>${t}</span></label>`).join('')}
+  </fieldset>`;
+}
+const agreedAll = v => v.agreeTerms && v.agreePrivacy && v.agreeWilling;
+function viewHome(){
+  const eligibleNow = state.donors.filter(d=>!eligibility(d).length).length;
+  const open = state.requests.filter(r=>r.status==='open' || r.status==='typing').length;
+  return `<section class="panel hero">
+      <div>
+        <h2>Every unit of blood starts with a willing donor.</h2>
+        <p>Blood cannot be manufactured; it can only come from people who give it voluntarily. BloodConnect ZC helps patients and families in Zamboanga City reach registered donors whose blood is compatible, and helps healthcare staff record donor screening during mass blood donation drives.</p>
+        <div class="actions"><button class="btn" data-go="request">Request blood</button><button class="btn ghost" data-go="register">Become a donor</button></div>
+      </div>
+      <div class="bigtags">${['O-','A+','B+','AB-'].map(t=>tag(t,'lg')).join('')}</div>
+    </section>
+    <div class="stats"><span><b>${state.donors.length}</b>registered donors</span><span><b>${eligibleNow}</b>eligible to donate today</span><span><b>${open}</b>open requests</span></div>
+    ${lookupBox()}
+
+    <div class="section"><h3>Why blood donation matters</h3>
+      <div class="grid3" style="margin-top:10px">
+        <div class="panel card"><h3>Blood can’t be made</h3><p>Every transfusion depends on a voluntary donor. Regular, unpaid donors are the safest and most reliable source of blood.</p></div>
+        <div class="panel card"><h3>Matching matters</h3><p>Blood must match by ABO group and Rh factor. BloodConnect ZC only alerts donors whose blood type can be given to the patient.</p></div>
+        <div class="panel card"><h3>Screening keeps it safe</h3><p>Every donor is examined and tested before and after donating, so both the donor and the patient are protected.</p></div>
+      </div>
+    </div>
+
+    <div class="section"><h3>Donor screening procedure</h3>
+      <p class="sub">General steps a donor goes through at a blood donation drive or blood service facility.</p>
+      <ol class="steps">
+        <li><div><b>Registration</b><span>The donor gives personal details, birthdate, blood type if known, and whether this is a first-time or repeat donation.</span></div></li>
+        <li><div><b>Medical history and interview</b><span>Staff review the donor’s health history to check for conditions that may cause deferral.</span></div></li>
+        <li><div><b>Physical examination</b><span>Weight, blood pressure, pulse rate, and body temperature are measured and recorded.</span></div></li>
+        <li><div><b>Hemoglobin, hematocrit, and blood typing</b><span>A blood sample checks if the donor has enough hemoglobin and confirms the ABO and Rh blood group.</span></div></li>
+        <li><div><b>Blood donation</b><span>Qualified personnel collect the blood. The donor rests and takes refreshments afterward.</span></div></li>
+        <li><div><b>Laboratory screening</b><span>The collected blood is tested for transfusion-transmissible infections by an authorized blood service facility.</span></div></li>
+      </ol>
+    </div>
+
+    <div class="section"><h3>Examination reference ranges</h3>
+      <p class="sub">Used by the system to flag values for review. Subject to current blood service guidelines.</p>
+      <div class="tablewrap"><table class="ref">
+        <thead><tr><th>Examination</th><th>Acceptable range</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><b>Weight</b></td><td>At least ${RULES.minWeight} kg (${kgToLb(RULES.minWeight)} lbs)</td><td>Helps determine how much blood may be safely collected</td></tr>
+          <tr><td><b>Blood pressure</b></td><td>Systolic ${VITALS.bpSys[0]}–${VITALS.bpSys[1]} mmHg, diastolic ${VITALS.bpDia[0]}–${VITALS.bpDia[1]} mmHg</td><td>Checks that circulation is stable</td></tr>
+          <tr><td><b>Pulse rate</b></td><td>${VITALS.pulse[0]}–${VITALS.pulse[1]} beats per minute</td><td>Checks heart rate</td></tr>
+          <tr><td><b>Body temperature</b></td><td>Not above ${VITALS.tempMax}°C (${cToF(VITALS.tempMax)}°F)</td><td>Rules out fever or infection</td></tr>
+          <tr><td><b>Hemoglobin and hematocrit</b></td><td>Assessed by staff per current guidelines</td><td>Checks for enough red blood cells</td></tr>
+          <tr><td><b>Blood typing</b></td><td>ABO and Rh group</td><td>Confirms the donor’s blood type</td></tr>
+          <tr><td><b>Infection screening</b></td><td>HIV, Hepatitis B (HBsAg), Hepatitis C (HCV), Syphilis, and Malaria where required</td><td>Done by an authorized blood service facility</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="section"><h3>Republic Act No. 7719: National Blood Services Act of 1994</h3>
+      <div class="panel card" style="margin-top:6px">
+        <p>RA 7719 declares blood donation a humanitarian act and promotes voluntary, unpaid blood donation as the safest source of blood. It prohibits the commercial sale of blood, requires government hospitals to support voluntary blood donation programs, and calls for communities to keep lists of qualified voluntary donors who are ready to give blood when needed. BloodConnect ZC is a digital version of that donor list.</p>
+      </div>
+    </div>
+
+    <div class="section"><h3>Your privacy: Data Privacy Act of 2012 (RA 10173)</h3>
+      <div class="panel card" style="margin-top:6px">
+        <p>BloodConnect ZC never shows the names or contact numbers of donors or patients in public. Every donor and every request is identified only by a 10-digit ID with a barcode. Names, contact numbers, and screening results are visible only to authorized healthcare staff, who are the ones who contact matched donors and patients. Every donor and requester must agree to the Terms and Conditions and give consent before any information is collected.</p>
+      </div>
+    </div>
+
+    <div class="section callout info">Final donor eligibility is always decided by qualified healthcare personnel. Laboratory screening for infections is done only by an authorized blood service facility. BloodConnect ZC records results and helps match donors; it does not replace medical judgment.</div>`;
+}
+
+function reqCard(r){
+  const acc = Object.values(r.responses).filter(x=>x==='accepted').length;
+  return `<button class="req" data-open="${r.id}">
+    ${tag(r.bloodType)}
+    <div class="info"><h3>${esc(hospitalName(r))}${statusChip(r)}</h3>
+    <p>Request ${r.code}. ${r.status==='typing' ? 'Waiting for the hospital to confirm the patient’s blood type' : `${r.units} unit${r.units>1?'s':''} needed`}, posted ${ago(r.createdAt)}</p></div>
+    <div class="prog"><span><b>${r.donated.length}/${r.units}</b> units donated</span><span><b>${acc}</b> accepted of ${r.notified.length} notified</span></div>
+  </button>`;
+}
+function viewRequests(){
+  const open = state.requests.filter(r=>r.status==='open' || r.status==='typing');
+  const closed = state.requests.filter(r=>r.status==='fulfilled' || r.status==='cancelled');
+  return `<div class="head"><div><h2>Blood requests</h2><p>Each request alerts only the donors whose blood type is compatible and who are eligible to donate today.</p></div>
+    <button class="btn" data-go="request">Request blood</button></div>
+    ${lookupBox('Track a request by its Request ID')}
+    ${open.length ? `<div class="reqs">${open.map(reqCard).join('')}</div>` : `<div class="panel empty"><p>No open requests right now.</p><button class="btn" data-go="request">Request blood</button></div>`}
+    ${closed.length ? `<div class="section"><h3>Closed requests</h3><div class="reqs">${closed.map(reqCard).join('')}</div></div>` : ''}`;
+}
+
+function viewDetail(){
+  const r = state.requests.find(x=>x.id===state.detail);
+  if (!r) { state.detail = null; return viewRequests(); }
+  const byId = id => state.donors.find(d=>d.id===id);
+  const h = state.hospitals.find(x=>x.id===r.hospitalId);
+  const notified = r.notified.map(byId).filter(Boolean);
+  const order = {donated:0, accepted:1, undefined:2, declined:3};
+  const st = d => r.donated.includes(d.id) ? 'donated' : r.responses[d.id];
+  notified.sort((a,b)=>order[st(a)]-order[st(b)]);
+  const canManage = isStaff() || (fb.user && r.ownerUid === fb.user.uid);
+  const pa = ageOf(r.patientBirthdate);
+  let body = '';
+  if (r.status === 'typing'){
+    body = `<div class="section callout info">The patient’s blood type is not yet known, so no donors have been alerted. Once hospital staff confirm the blood type, compatible and eligible donors are notified automatically.</div>
+      ${isStaff() ? `<div class="panel inline-form" style="margin-top:12px"><h3>Set the patient’s confirmed blood type</h3>
+        <div class="picker" id="settype">${TYPES.map(t=>`<label><input type="radio" name="setbt" value="${t}"><span>${t}</span></label>`).join('')}</div>
+        <div><button class="btn" data-settype="${r.id}">Confirm and notify donors</button></div></div>`
+      : `<p class="muted" style="margin-top:12px">Switch “Viewing as” to Healthcare staff to confirm the blood type.</p>`}`;
+  } else {
+    const m = match(r.bloodType);
+    const late = r.status==='open' ? m.eligible.filter(d=>!r.notified.includes(d.id)) : [];
+    body = `<div class="section"><h3>Notified donors</h3>
+      <p class="sub">Donor types that can give to ${esc(r.bloodType)}: ${COMPAT[r.bloodType].join(', ')}. Accepted donors appear first.</p>
+      ${notified.length ? `<div class="rows">${notified.map(d=>{
+        const s = st(d);
+        const label = s==='donated'?'Donated':s==='accepted'?'Accepted':s==='declined'?'Declined':'No reply yet';
+        return `<div class="row">${tag(d.bloodType,'sm')}<div class="who"><b>Donor ${d.code}</b>${isStaff()?`<p>${esc(d.name)}, ${esc(d.barangay)}${s==='accepted'||s==='donated'?`, ${esc(d.phone)}`:''}</p>`:''}</div>
+          <span class="pill ${s||''}">${label}</span>
+          ${isStaff() && s==='accepted' && r.status==='open' ? `<button class="btn ok sm" data-donated="${d.id}">Record donation</button>`:''}</div>`;
+      }).join('')}</div>` : `<div class="panel empty"><p>No compatible donors were eligible when this request was posted.</p></div>`}
+    </div>
+    ${late.length ? `<div class="section"><h3>Newly eligible donors</h3><p class="sub">These donors became eligible after the request was posted.</p>
+      <button class="btn sm" data-notifylate="${r.id}">Notify ${late.length} more donor${late.length>1?'s':''}</button></div>`:''}
+    ${m.blocked.length && isStaff() ? `<div class="section"><h3>Compatible but not eligible today</h3><p class="sub">Visible to healthcare staff only. These donors match the blood type but were skipped by the eligibility rules.</p>
+      <div class="rows">${m.blocked.map(d=>`<div class="row">${tag(d.bloodType,'sm')}<div class="who"><b>Donor ${d.code}</b><p>${esc(d.name)}</p><p class="reasons">${eligibility(d).map(esc).join('; ')}</p></div></div>`).join('')}</div></div>`
+    : m.blocked.length ? `<p class="muted" style="margin-top:12px">${m.blocked.length} more compatible donor${m.blocked.length>1?'s are':' is'} not eligible today. Details are visible only to healthcare staff.</p>` : ''}`;
+  }
+  const pct = Math.min(100, Math.round(r.donated.length/r.units*100));
+  return `<button class="back" data-go="requests">‹ All requests</button>
+  <div class="panel detail-top">
+    ${tag(r.bloodType,'lg')}
+    <div class="meta"><h2 style="font-size:1.35rem">${esc(hospitalName(r))}${statusChip(r)}</h2>
+      <p>Request ${r.code}. ${URGENCY[r.urgency]}. Posted ${ago(r.createdAt)}.</p>
+      ${h && h.address ? `<p>${esc(h.address)}</p>` : ''}
+      ${isStaff() ? `<p><b>Staff only:</b> Patient ${esc(r.patientName)}${pa!==null?`, ${pa} years old`:''}. Requester ${esc(r.contactName)}, ${esc(r.contactPhone)}${r.contactEmail?`, ${esc(r.contactEmail)}`:''}</p>`
+        : `<p class="muted">Patient and requester details are visible only to authorized healthcare staff.</p>`}
+      ${r.note?`<p>Note: ${esc(r.note)}</p>`:''}
+      <div class="meter" aria-label="${r.donated.length} of ${r.units} units donated"><i style="width:${pct}%"></i></div>
+      <p style="margin-top:6px">${r.donated.length} of ${r.units} unit${r.units>1?'s':''} donated</p>
+    </div>
+    ${canManage && (r.status==='open'||r.status==='typing') ? `<button class="btn ghost sm" data-cancel="${r.id}">Cancel request</button>` : ''}
+  </div>
+  ${isStaff() && r.status==='open' && notified.some(d=>st(d)==='accepted') ? `<div class="section callout">Staff action: contact the accepted donor${notified.filter(d=>st(d)==='accepted').length>1?'s':''} and the requester to arrange the donation at ${esc(hospitalName(r))}.</div>` : ''}
+  <div class="section" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${idCard('Request ID', r.code)}<p class="muted" style="max-width:46ch">Save this Request ID. Use it to track the request without showing the patient’s name.</p></div>
+  ${body}`;
+}
+
+function hospitalOptions(){
+  return `<option value="">Choose a hospital</option>` + state.hospitals.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('') + `<option value="other">Other (type below)</option>`;
+}
+function viewRequest(){
+  return `<div class="head"><div><h2>Request blood</h2><p>Fill in the patient’s details. Only compatible, eligible donors are alerted.</p></div></div>
+  <div class="formwrap">
+    <form class="panel" id="reqform" novalidate>
+      <label>Patient’s complete name<input name="patientName" required autocomplete="off"></label>
+      <div class="grid2">
+        <label>Patient’s birthdate<input name="patientBirthdate" type="date" max="${today()}" required></label>
+        <label>Age<input id="pAge" disabled placeholder="Computed from birthdate"></label>
+      </div>
+      <fieldset><legend>Patient’s blood type</legend>
+        <div class="picker">${TYPES.map(t=>`<label><input type="radio" name="bloodType" value="${t}"><span>${t}</span></label>`).join('')}<label><input type="radio" name="bloodType" value="unknown"><span>Not yet known</span></label></div>
+      </fieldset>
+      <div class="grid2">
+        <label>Units needed<select name="units">${[1,2,3,4,5,6].map(n=>`<option>${n}</option>`).join('')}</select></label>
+        <label>Urgency<select name="urgency">${Object.keys(URGENCY).map(u=>`<option value="${u}">${u}: ${URGENCY[u].toLowerCase()}</option>`).join('')}</select></label>
+      </div>
+      <label>Hospital where the patient is admitted<select name="hospitalId" id="hospSel">${hospitalOptions()}</select></label>
+      <label id="otherWrap" hidden>Hospital name<input name="hospitalOther" autocomplete="off"></label>
+      <div class="grid2">
+        <label>Contact person<input name="contactName" required autocomplete="name"></label>
+        <label>Contact number<input name="contactPhone" required inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX"></label>
+      </div>
+      <label>Email address <span class="hint">Optional</span><input name="contactEmail" type="email" autocomplete="email"></label>
+      <label>Note for donors <span class="hint">Optional. Don’t include names or contact numbers.</span><textarea name="note"></textarea></label>
+      ${termsBox('request')}
+      <p class="reasons" id="reqerr" role="alert"></p>
+      <div><button class="btn" type="submit">Post request</button></div>
+    </form>
+    <aside class="panel preview" id="preview">${previewHtml(null)}</aside>
+  </div>`;
+}
+function previewHtml(type){
+  if (!type) return `<h3>Matching preview</h3><p style="margin-top:8px">Pick the patient’s blood type to see how many donors will be alerted.</p>`;
+  if (type === 'unknown') return `<h3>Matching preview</h3><p style="margin-top:8px">No donors will be alerted yet. The request is posted as “Awaiting blood typing,” and donors are notified as soon as hospital staff confirm the blood type.</p>`;
+  const m = match(type);
+  return `<h3>Matching preview</h3>
+    <div class="big">${m.eligible.length}</div>
+    <p>donor${m.eligible.length===1?'':'s'} will be alerted for ${esc(type)}. ${m.blocked.length} more ${m.blocked.length===1?'is':'are'} compatible but not eligible today.</p>
+    <p style="margin-top:12px">Accepted donor types</p>
+    <div class="types">${COMPAT[type].map(t=>tag(t,'sm')).join('')}</div>`;
+}
+
+function viewRegister(){
+  if (fb.profile?.donorCode) return `<div class="head"><div><h2>Become a donor</h2><p>You are already registered.</p></div></div>
+    <div class="panel empty"><p>Your Donor ID is</p>${idCard('Donor ID', fb.profile.donorCode)}<p style="margin-top:12px"><button class="btn" data-as="${fb.profile.donorCode}">Open my donor alerts</button></p></div>`;
+  return `<div class="head"><div><h2>Become a donor</h2><p>Register once, and you’ll be alerted only when a patient needs a blood type you can give.</p></div></div>
+  <div class="formwrap">
+    <form class="panel" id="regform" novalidate>
+      <label>Full name<input name="name" required autocomplete="name"></label>
+      <div class="grid2">
+        <label>Birthdate<input name="birthdate" type="date" max="${today()}" required></label>
+        <label>Age<input id="dAge" disabled placeholder="Computed from birthdate"></label>
+      </div>
+      <fieldset><legend>Blood type</legend>
+        <div class="picker">${TYPES.map(t=>`<label><input type="radio" name="bloodType" value="${t}"><span>${t}</span></label>`).join('')}</div>
+      </fieldset>
+      <div class="grid2">
+        <label>Mobile number<input name="phone" required inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX"></label>
+        <label>Email <span class="hint">Optional</span><input name="email" type="email" autocomplete="email"></label>
+      </div>
+      <div class="grid2">
+        <label>Weight (kg) <span class="hint">Measured again at screening</span><input name="weight" type="number" min="1" max="300" step="0.1" required></label>
+        <label>Barangay<select name="barangay" required><option value="">Choose</option>${BARANGAYS.map(b=>`<option>${b}</option>`).join('')}<option>Other</option></select></label>
+      </div>
+      <fieldset><legend>Have you donated blood before?</legend>
+        <div class="picker"><label><input type="radio" name="donorType" value="first" checked><span>First-time donor</span></label><label><input type="radio" name="donorType" value="repeat"><span>Repeat donor</span></label></div>
+      </fieldset>
+      <label id="lastWrap" hidden>Date of last blood donation<input name="lastDonation" type="date" max="${today()}"></label>
+      ${termsBox('donor')}
+      <p class="reasons" id="regerr" role="alert"></p>
+      <div><button class="btn" type="submit">Register as donor</button></div>
+    </form>
+    <aside class="panel preview">
+      <h3>Who can donate</h3>
+      <div class="rulelist" style="margin-top:4px">
+        <p>Age ${RULES.minAge} to ${RULES.maxAge}</p>
+        <p>At least ${RULES.minWeight} kg (${kgToLb(RULES.minWeight)} lbs)</p>
+        <p>At least ${RULES.waitDays} days since your last donation</p>
+        <p>Cleared at your latest donor screening</p>
+      </div>
+      <p style="margin-top:12px">Final screening is always done by medical staff at the hospital, blood bank, or donation drive.</p>
+    </aside>
+  </div>`;
+}
+
+function screeningSummary(s){
+  if (!s) return `<span class="chip">Not yet screened</span>`;
+  const c = s.decision==='cleared' ? 'ok' : s.decision==='deferred' ? 'bad' : 'warn';
+  return `<span class="chip ${c}">${DECISIONS[s.decision]}, ${fmtDate(s.at)}</span>`;
+}
+function historyTable(d){
+  if (!d.screenings || !d.screenings.length) return `<div class="panel empty"><p>No screening records yet.</p></div>`;
+  return `<div class="tablewrap"><table class="hist"><thead><tr><th>Date and time</th><th>Weight</th><th>BP</th><th>Pulse</th><th>Temp</th><th>Hgb</th><th>Hct</th><th>Type</th><th>Infection screening</th><th>Decision</th></tr></thead><tbody>
+    ${d.screenings.slice().reverse().map(s=>`<tr><td>${fmtDateTime(s.at)}</td><td>${s.weightKg} kg<br><span class="muted">${kgToLb(+s.weightKg)} lbs</span></td><td>${s.bpSys}/${s.bpDia}</td><td>${s.pulse}</td><td>${s.temp}°C</td><td>${has(s.hb)?s.hb+' g/dL':'–'}</td><td>${has(s.hct)?s.hct+'%':'–'}</td><td>${s.bloodType||'–'}</td>
+      <td>${TTI.map(t=>`${t.short}: ${esc(s.tti?.[t.k]||'–')}`).join('<br>')}</td><td>${screeningSummary(s)}${s.notes?`<br><span class="muted">${esc(s.notes)}</span>`:''}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function viewInbox(){
+  const d = me();
+  if (!d) return `<div class="head"><div><h2>Donor alerts</h2><p>Alerts are shown per donor.</p></div></div>
+    <div class="panel empty"><p>${fb.profile?.donorCode ? "Choose “My donor account” in “Viewing as” at the top." : "You are not registered as a donor yet."}</p>${fb.profile?.donorCode ? "" : `<p><button class="btn" data-go="register">Become a donor</button></p>`}</div>`;
+  const elig = eligibility(d);
+  const mine = state.requests.filter(r=>r.notified.includes(d.id));
+  const open = mine.filter(r=>r.status==='open');
+  const past = mine.filter(r=>r.status!=='open');
+  const alert = r => {
+    const s = r.donated.includes(d.id) ? 'donated' : r.responses[d.id];
+    return `<div class="panel alert">
+      <div class="top">${tag(r.bloodType)}<div><h3>${esc(hospitalName(r))}${statusChip(r)}</h3>
+        <p>${r.units} unit${r.units>1?'s':''} needed. ${URGENCY[r.urgency]}. Alerted ${ago(r.createdAt)}.</p>${r.note?`<p>${esc(r.note)}</p>`:''}</div></div>
+      ${s==='accepted' ? `<div class="contact">You accepted request ${r.code}. Authorized staff at ${esc(hospitalName(r))} will contact you to arrange your donation. Keep your Donor ID ready.</div>` : ''}
+      ${s==='donated' ? `<div class="contact">Donation recorded. Thank you.</div>` : ''}
+      ${r.status==='open' && s!=='donated' ? `<div class="actions">
+        ${s!=='accepted' ? `<button class="btn ok sm" data-respond="accepted" data-r="${r.id}">Accept</button>` : ''}
+        ${s!=='declined' ? `<button class="btn ghost sm" data-respond="declined" data-r="${r.id}">${s==='accepted'?'Withdraw':'Decline'}</button>` : `<span class="pill declined">You declined</span>`}
+      </div>` : ''}
+    </div>`;
+  };
+  const a = ageOf(d.birthdate);
+  return `<div class="head"><div><h2>Donor alerts</h2><p>What donor ${d.code} sees on their phone.</p></div></div>
+    <div class="panel profile">${tag(d.bloodType,'lg')}
+      <div class="meta"><h3>Donor ${d.code} ${d.btConfirmed?'<span class="chip ok">Blood type confirmed</span>':''}</h3>
+        <p>${a!==null?`${a} years old, `:''}${esc(d.barangay)}. ${d.donorType==='first'?'First-time donor':'Repeat donor'}. Last donation: ${fmtDate(d.lastDonation)}</p>
+        <p style="margin-top:6px">Latest screening: ${screeningSummary(lastScreening(d))}</p>
+        <p class="elig ${elig.length?'no':'yes'}">${elig.length?esc(elig.join('; ')):'Eligible to donate today'}</p></div>
+      <label class="switch"><input type="checkbox" id="avail" ${d.available?'checked':''}> Available for alerts</label>
+    </div>
+    <div class="section" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:-8px 0 22px">${idCard('Donor ID', d.code)}<p class="muted" style="max-width:46ch">Save this Donor ID. It’s how you open your record, and how staff identify you without showing your name.</p></div>
+    <h3 style="margin-bottom:10px">Open alerts</h3>
+    ${open.length ? open.map(alert).join('') : `<div class="panel empty"><p>No open alerts. You’ll get one when a compatible patient needs blood.</p></div>`}
+    ${past.length ? `<div class="section"><h3>Past alerts</h3>${past.map(alert).join('')}</div>` : ''}
+    <div class="section"><h3>My screening records</h3><p class="sub">Only you and authorized healthcare staff can see these details.</p>${historyTable(d)}</div>`;
+}
+
+function viewScreening(){
+  if (!isStaff()) return `<div class="head"><div><h2>Donor screening and examination</h2><p>Healthcare staff record each donor’s examination results here before donation.</p></div></div>
+    <div class="panel locked"><p><b>Only healthcare staff can view and record screening results.</b></p><p style="margin-top:6px">Switch “Viewing as” at the top to Healthcare staff.</p><button class="btn" style="margin-top:14px" data-as="staffhc">Switch to Healthcare staff</button></div>`;
+  const sorted = state.donors.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if (!sorted.length) return `<div class="head"><div><h2>Donor screening and examination</h2></div></div><div class="panel empty"><p>No registered donors yet.</p></div>`;
+  const sel = state.screenDonor && state.donors.find(d=>d.id===state.screenDonor) ? state.screenDonor : sorted[0].id;
+  state.screenDonor = sel;
+  const d = state.donors.find(x=>x.id===sel);
+  return `<div class="head"><div><h2>Donor screening and examination</h2><p>Assess a potential donor before donation. The system flags values outside the reference ranges; the final decision is yours.</p></div></div>
+  <div class="formwrap">
+    <form class="panel" id="scrform" novalidate>
+      <label>Donor<select id="scrDonor">${sorted.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${x.code}: ${esc(x.name)} (${esc(x.bloodType)}${x.btConfirmed?', confirmed':''})</option>`).join('')}</select></label>
+      <p class="muted" style="font-size:.88rem">${d.donorType==='first'?'First-time donor':'Repeat donor'}, ${ageOf(d.birthdate)} years old. Last donation: ${fmtDate(d.lastDonation)}. Recorded on ${fmtDateTime(new Date())}.</p>
+      <h3>Physical examination</h3>
+      <div class="grid2">
+        <label>Weight <span class="hint">Without shoes or heavy clothing</span><div class="unit"><input name="weightKg" type="number" step="0.1" min="1" max="300" placeholder="kg"><span id="lbs">kg = – lbs</span></div></label>
+        <label>Pulse rate<div class="unit"><input name="pulse" type="number" min="1" max="250" placeholder="bpm"><span>bpm</span></div></label>
+      </div>
+      <div class="grid2">
+        <label>Blood pressure<div class="unit"><input name="bpSys" type="number" min="1" max="300" placeholder="Systolic"><span>/</span><input name="bpDia" type="number" min="1" max="200" placeholder="Diastolic"><span>mmHg</span></div></label>
+        <label>Body temperature<div class="unit"><input name="temp" type="number" step="0.1" min="30" max="45" placeholder="°C"><span id="degF">°C = – °F</span></div></label>
+      </div>
+      <h3>Laboratory determination</h3>
+      <div class="grid2">
+        <label>Hemoglobin<div class="unit"><input name="hb" type="number" step="0.1" min="1" max="25" placeholder="g/dL"><span>g/dL</span></div></label>
+        <label>Hematocrit <span class="hint">When required</span><div class="unit"><input name="hct" type="number" step="0.1" min="1" max="80" placeholder="%"><span>%</span></div></label>
+      </div>
+      <label>Confirmed blood type<select name="bloodType"><option value="">Not tested</option>${TYPES.map(t=>`<option value="${t}" ${t===d.bloodType?'selected':''}>${t}</option>`).join('')}</select></label>
+      <fieldset><legend>Screening for transfusion-transmissible infections</legend>
+        <div class="tti">${TTI.map(t=>`<label>${t.label}<select name="tti_${t.k}">${(t.optional?['Not required']:[]).concat(['Pending','Non-reactive','Reactive']).map(o=>`<option>${o}</option>`).join('')}</select></label>`).join('')}</div>
+        <p class="hint" style="margin-top:6px">Laboratory testing is performed by an authorized blood service facility.</p>
+      </fieldset>
+      <fieldset><legend>Staff decision</legend>
+        <div class="picker decision">${Object.entries(DECISIONS).map(([k,v])=>`<label><input type="radio" name="decision" value="${k}" ${k==='cleared'?'checked':''}><span>${v}</span></label>`).join('')}</div>
+      </fieldset>
+      <label>Notes <span class="hint">Optional</span><textarea name="notes" placeholder="e.g. Mass blood donation drive, UZ campus"></textarea></label>
+      <p class="reasons" id="screrr" role="alert"></p>
+      <div><button class="btn" type="submit">Save screening record</button></div>
+    </form>
+    <aside class="panel preview" id="checks">${checksHtml({})}</aside>
+  </div>
+  <div class="section"><h3>Screening history: Donor ${d.code}</h3>${historyTable(d)}</div>`;
+}
+function checksHtml(s){
+  const row = (label, val, ok, range) => `<div><span>${label}<small>${range}</small></span>${!val?'<span class="chip">Not entered</span>':ok?`<span class="chip ok">${val} ✓</span>`:`<span class="chip warn">${val} ⚠</span>`}</div>`;
+  const tt = TTI.map(t=>s.tti?.[t.k]).filter(Boolean);
+  const reactive = tt.includes('Reactive');
+  const sug = has(s.weightKg)||has(s.bpSys)||reactive ? suggestDecision(s) : null;
+  return `<h3>Preliminary check</h3>
+    <div class="checks">
+      ${row('Weight', has(s.weightKg)?`${s.weightKg} kg`:'', +s.weightKg>=RULES.minWeight, `At least ${RULES.minWeight} kg`)}
+      ${row('Blood pressure', has(s.bpSys)&&has(s.bpDia)?`${s.bpSys}/${s.bpDia}`:'', +s.bpSys>=VITALS.bpSys[0]&&+s.bpSys<=VITALS.bpSys[1]&&+s.bpDia>=VITALS.bpDia[0]&&+s.bpDia<=VITALS.bpDia[1], `${VITALS.bpSys[0]}–${VITALS.bpSys[1]} / ${VITALS.bpDia[0]}–${VITALS.bpDia[1]} mmHg`)}
+      ${row('Pulse rate', has(s.pulse)?`${s.pulse} bpm`:'', +s.pulse>=VITALS.pulse[0]&&+s.pulse<=VITALS.pulse[1], `${VITALS.pulse[0]}–${VITALS.pulse[1]} bpm`)}
+      ${row('Temperature', has(s.temp)?`${s.temp}°C`:'', +s.temp<=VITALS.tempMax, `Not above ${VITALS.tempMax}°C`)}
+      <div><span>Hemoglobin and hematocrit<small>Assess per current guidelines</small></span><span class="chip">${has(s.hb)?`${s.hb} g/dL`:'Not entered'}</span></div>
+      <div><span>Infection screening<small>Authorized facility</small></span>${reactive?'<span class="chip bad">Reactive result</span>':tt.length&&tt.every(x=>x!=='Pending')?'<span class="chip ok">No reactive results</span>':'<span class="chip">Pending</span>'}</div>
+    </div>
+    ${sug?`<p style="margin-top:14px"><b>Suggested:</b> ${DECISIONS[sug]}</p>`:''}
+    ${reactive?`<p class="reasons" style="margin-top:6px">Defer the donor and refer according to blood service protocol. This result stays confidential.</p>`:''}
+    <p class="hint" style="margin-top:10px">Final eligibility is decided by qualified healthcare personnel.</p>`;
+}
+
+function viewDonors(){
+  const counts = TYPES.map(t => [t, state.donors.filter(d=>d.bloodType===t).length]);
+  if (!isStaff()) return `<div class="head"><div><h2>Registered donors</h2><p>${state.donors.length} donors registered, by blood type.</p></div>
+    <button class="btn" data-go="register">Become a donor</button></div>
+    <div class="stats">${counts.map(([t,n])=>`<span><b>${n}</b>${t}</span>`).join('')}</div>
+    <div class="callout info" style="margin-bottom:16px">To protect donors under the Data Privacy Act of 2012 (RA 10173), the donor list is visible only to authorized healthcare staff. Donors can open their own record with their Donor ID.</div>
+    ${lookupBox('Open your donor record')}`;
+  return `<div class="head"><div><h2>Registered donors</h2><p>${state.donors.length} donors. Visible to healthcare staff only.</p></div>
+    <button class="btn" data-go="register">Register a donor</button></div>
+    <div class="stats">${counts.map(([t,n])=>`<span><b>${n}</b>${t}</span>`).join('')}</div>
+    <div class="rows">${state.donors.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(d=>{
+      const e = eligibility(d); const a = ageOf(d.birthdate);
+      return `<div class="row">${tag(d.bloodType,'sm')}<div class="who"><b>Donor ${d.code}</b><p>${esc(d.name)}, ${esc(d.phone)}</p><p>${esc(d.barangay)}, age ${a}, ${d.donorType==='first'?'first-time':'repeat'} donor, last donation ${fmtDate(d.lastDonation)}</p>
+        ${e.length?`<p class="reasons">${esc(e.join('; '))}</p>`:''}</div>
+        ${screeningSummary(lastScreening(d))}
+        <span class="pill ${e.length?'':'accepted'}">${e.length?'Not eligible':'Eligible'}</span>
+        <button class="btn ghost sm" data-screen="${d.id}">Screen</button></div>`;
+    }).join('')}</div>`;
+}
+
+function viewHospitals(){
+  const card = h => `<div class="panel hosp">
+    <div class="top"><h3>${esc(h.name)}</h3><span class="chip ${h.kind==='Hospital'?'':'ok'}">${esc(h.kind)}</span></div>
+    <p><b>Address:</b> ${h.address?esc(h.address):'<span class="tbd">To be added</span>'}</p>
+    <p><b>Contact:</b> ${h.contact?esc(h.contact):'<span class="tbd">To be added</span>'}</p>
+    <p><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name+' Zamboanga City')}" target="_blank" rel="noopener">Find on Google Maps ↗</a></p>
+    ${isStaff() && state.editHosp!==h.id ?`<div><button class="btn ghost sm" data-edithosp="${h.id}">Edit details</button></div>`:''}
+    ${isStaff() && state.editHosp===h.id ? `<form class="inline-form" data-hospform="${h.id}" style="padding:0">
+      <label>Name<input name="name" value="${esc(h.name)}"></label>
+      <label>Type<select name="kind">${['Blood service facility','Hospital with blood bank','Hospital'].map(k=>`<option ${k===h.kind?'selected':''}>${k}</option>`).join('')}</select></label>
+      <label>Address<input name="address" value="${esc(h.address)}"></label>
+      <label>Contact number<input name="contact" value="${esc(h.contact)}"></label>
+      <div style="display:flex;gap:8px"><button class="btn sm" type="submit">Save</button><button class="btn ghost sm" type="button" data-edithosp="">Cancel</button></div>
+    </form>`:''}
+  </div>`;
+  return `<div class="head"><div><h2>Hospitals and blood service facilities</h2><p>Find where to donate or where blood requests are coming from.</p></div>
+    ${isStaff()?`<button class="btn" data-addhosp="1">Add facility</button>`:''}</div>
+    <div class="callout info" style="margin-bottom:16px">The Philippine Red Cross Zamboanga City Chapter and Zamboanga City Medical Center are the city’s authorized blood banks. Details marked “To be added” should be confirmed directly with each facility${isStaff()?'.':'; healthcare staff can update them.'}</div>
+    <div class="grid2b">${state.hospitals.map(card).join('')}</div>`;
+}
+
+function viewRules(){
+  return `<div class="head"><div><h2>Matching rules</h2><p>The system uses ABO and Rh compatibility for red blood cells, then checks each donor’s eligibility. Tap a patient type to highlight its row.</p></div></div>
+    <div class="matrix-wrap"><table>
+      <thead><tr><th style="text-align:left;padding-left:14px">Patient ↓ / Donor →</th>${TYPES.map(t=>`<th>${t}</th>`).join('')}</tr></thead>
+      <tbody>${TYPES.map(r=>`<tr data-row="${r}"><th scope="row">${tag(r,'sm')}</th>${TYPES.map(d=>COMPAT[r].includes(d)?`<td class="y" aria-label="${d} can donate to ${r}">✓</td>`:`<td class="n" aria-label="${d} cannot donate to ${r}">·</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>
+    <div class="section"><h3>Donor eligibility</h3>
+      <div class="rulelist">
+        <div class="panel"><b>${RULES.minAge}–${RULES.maxAge}</b><span>Allowed donor age, computed from birthdate</span></div>
+        <div class="panel"><b>${RULES.minWeight} kg</b><span>Minimum weight (latest screening weight if available)</span></div>
+        <div class="panel"><b>${RULES.waitDays} days</b><span>Waiting period between whole blood donations</span></div>
+        <div class="panel"><b>Cleared</b><span>Not deferred or awaiting evaluation at the latest screening</span></div>
+        <div class="panel"><b>On</b><span>Donor must have alerts switched on</span></div>
+      </div>
+      <p class="note" style="margin-top:12px">These values follow common Philippine blood donation guidelines and were reviewed with our Medical Technology consultant. The system does not replace medical screening.</p>
+    </div>`;
+}
+
+function viewSms(){
+  return `<div class="head"><div><h2>SMS log</h2><p>Alerts sent to matched donors. Donors are identified by Donor ID only, and no names or contact numbers appear in messages. Messages are recorded here; connecting a paid SMS gateway sends them as real texts.</p></div></div>
+    ${state.sms.length ? `<div class="rows">${state.sms.map(s=>`<div class="sms"><span class="to">To Donor ${esc(s.code)}, ${ago(s.at)}</span><span class="txt">${esc(s.text)}</span></div>`).join('')}</div>`
+    : `<div class="panel empty"><p>No messages yet. Post a request to see the alerts sent.</p></div>`}`;
+}
+/* ================= Bindings (what happens when buttons and forms are used) ================= */
+const bind = {
+  request(){
+    const f = $('#reqform');
+    f.addEventListener('change', e => {
+      if (e.target.name==='bloodType') $('#preview').innerHTML = previewHtml(e.target.value);
+      if (e.target.name==='hospitalId') $('#otherWrap').hidden = e.target.value !== 'other';
+    });
+    f.patientBirthdate.addEventListener('input', () => { const a = ageOf(f.patientBirthdate.value); $('#pAge').value = a===null?'':`${a} years old`; });
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(f));
+      const miss = [];
+      if (!v.patientName?.trim()) miss.push('the patient’s complete name');
+      if (!v.patientBirthdate) miss.push('birthdate');
+      if (!v.bloodType) miss.push('blood type (or “Not yet known”)');
+      if (!v.hospitalId || (v.hospitalId==='other' && !v.hospitalOther?.trim())) miss.push('hospital');
+      if (!v.contactName?.trim()) miss.push('contact person');
+      if (!/^[0-9 +()-]{7,}$/.test(v.contactPhone||'')) miss.push('a valid contact number');
+      if (miss.length) { $('#reqerr').textContent = 'Add ' + miss.join(', ') + ' to post this request.'; return; }
+      if (!agreedAll(v)) { $('#reqerr').textContent = 'Tick all three boxes under Terms and Conditions and Data Privacy to post this request.'; return; }
+      const btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Posting…';
+      const unknown = v.bloodType === 'unknown';
+      let r, n = 0;
+      const ok = await run(async () => {
+        const code = await uniqueCode('requests','100');
+        r = { id:code, code, patientName:v.patientName.trim(), patientBirthdate:v.patientBirthdate, bloodType: unknown?null:v.bloodType, units:+v.units, urgency:v.urgency,
+          hospitalId: v.hospitalId==='other'?'':v.hospitalId, hospitalOther:(v.hospitalOther||'').trim(), contactName:v.contactName.trim(), contactPhone:v.contactPhone.trim(),
+          contactEmail:(v.contactEmail||'').trim(), note:(v.note||'').trim(), createdAt:Date.now(), status: unknown?'typing':'open', notified:[], responses:{}, donated:[], ownerUid:fb.user.uid };
+        n = unknown ? 0 : notify(r, match(r.bloodType).eligible);
+        const b = writeBatch(db);
+        b.set(doc(db,'requests',code), requestPublic(r));
+        b.set(doc(db,'requestsPrivate',code), requestPrivate(r));
+        queueSms(b);
+        await b.commit();
+      });
+      if (!ok) { btn.disabled = false; btn.textContent = 'Post request'; return; }
+      raw.reqs[r.code] = requestPublic(r); raw.reqPriv[r.code] = requestPrivate(r); rebuild();
+      go('requests', r.code);
+      toast(`Request ${r.code} posted. Save this Request ID. ` + (unknown ? 'Donors will be alerted once the blood type is confirmed.' : n ? `${n} compatible donor${n>1?'s':''} alerted.` : 'No eligible compatible donors yet.'));
+    });
+  },
+  register(){
+    const f = $('#regform'); if (!f) return;
+    f.birthdate.addEventListener('input', () => { const a = ageOf(f.birthdate.value); $('#dAge').value = a===null?'':`${a} years old`; });
+    f.addEventListener('change', e => { if (e.target.name==='donorType') $('#lastWrap').hidden = e.target.value !== 'repeat'; });
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(f));
+      const miss = [];
+      if (!v.name?.trim()) miss.push('your name'); if (!v.birthdate) miss.push('birthdate'); if (!v.bloodType) miss.push('blood type');
+      if (!/^[0-9 +()-]{7,}$/.test(v.phone||'')) miss.push('a valid mobile number');
+      if (!v.weight) miss.push('weight'); if (!v.barangay) miss.push('barangay');
+      if (v.donorType==='repeat' && !v.lastDonation) miss.push('date of your last donation');
+      if (miss.length) { $('#regerr').textContent = 'Add ' + miss.join(', ') + ' to register.'; return; }
+      if (!agreedAll(v)) { $('#regerr').textContent = 'Tick all three boxes under Terms and Conditions and Data Privacy to register.'; return; }
+      const btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Registering…';
+      let d, n = 0;
+      const ok = await run(async () => {
+        const code = await uniqueCode('donors','000');
+        d = { id:code, code, uid:fb.user.uid, name:v.name.trim(), bloodType:v.bloodType, btConfirmed:false, birthdate:v.birthdate, phone:v.phone.trim(), email:(v.email||'').trim(),
+          weight:+v.weight, barangay:v.barangay, donorType:v.donorType, lastDonation: v.donorType==='repeat' ? v.lastDonation : null, available:true, consent:true, createdAt:Date.now(), screenings:[] };
+        const b = writeBatch(db);
+        b.set(doc(db,'donors',code), donorPublic(d));
+        b.set(doc(db,'donorsPrivate',code), donorPrivate(d));
+        b.update(doc(db,'users',fb.user.uid), { donorCode:code });
+        await b.commit();
+        // Alert the new donor about open requests that need their blood type
+        if (!eligibility(d).length) {
+          const b2 = writeBatch(db);
+          state.requests.filter(r=>r.status==='open' && r.bloodType && COMPAT[r.bloodType].includes(d.bloodType)).forEach(r => {
+            if (notify(r,[d])) { n++; b2.update(doc(db,'requests',r.code), { notified: arrayUnion(d.code) }); }
+          });
+          queueSms(b2); if (n) await b2.commit();
+        }
+      });
+      if (!ok) { btn.disabled = false; btn.textContent = 'Register as donor'; return; }
+      fb.profile.donorCode = d.code; state.viewAs = d.code;
+      startListeners();
+      go('inbox');
+      const e2 = eligibility(d);
+      toast(`Registered. Your Donor ID is ${d.code}. Save it.` + (e2.length ? ` Not eligible yet: ${e2[0]}.` : n ? ` You have ${n} open alert${n>1?'s':''}.` : ''));
+    });
+  },
+  inbox(){
+    const a = $('#avail');
+    if (a) a.addEventListener('change', () => { const d = me(); if (!d) return;
+      run(() => updateDoc(doc(db,'donors',d.code), { available:a.checked }), a.checked?'Alerts switched on.':'Alerts switched off.'); });
+  },
+  screening(){
+    const f = $('#scrform'); if (!f) return;
+    $('#scrDonor').addEventListener('change', e => { state.screenDonor = e.target.value; render(); });
+    const read = () => {
+      const v = Object.fromEntries(new FormData(f));
+      return { weightKg:v.weightKg, bpSys:v.bpSys, bpDia:v.bpDia, pulse:v.pulse, temp:v.temp, hb:v.hb, hct:v.hct, bloodType:v.bloodType,
+        tti:Object.fromEntries(TTI.map(t=>[t.k, v['tti_'+t.k]])), decision:v.decision, notes:(v.notes||'').trim() };
+    };
+    let touchedDecision = false;
+    const update = (e) => {
+      if (e && e.target.name === 'decision') { touchedDecision = true; return; }
+      const s = read();
+      $('#lbs').textContent = has(s.weightKg) ? `kg = ${kgToLb(+s.weightKg)} lbs` : 'kg = – lbs';
+      $('#degF').textContent = has(s.temp) ? `°C = ${cToF(+s.temp)}°F` : '°C = – °F';
+      $('#checks').innerHTML = checksHtml(s);
+      if (!touchedDecision && (has(s.weightKg) || has(s.bpSys) || anyReactive(s))) {
+        const r = f.querySelector(`input[name="decision"][value="${suggestDecision(s)}"]`); if (r) r.checked = true;
+      }
+    };
+    f.addEventListener('input', update); f.addEventListener('change', update);
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const s = read();
+      const miss = [];
+      if (!has(s.weightKg)) miss.push('weight'); if (!has(s.bpSys) || !has(s.bpDia)) miss.push('blood pressure'); if (!has(s.pulse)) miss.push('pulse rate'); if (!has(s.temp)) miss.push('temperature');
+      if (miss.length) { $('#screrr').textContent = 'Add ' + miss.join(', ') + ' to save.'; return; }
+      if (anyReactive(s) && s.decision !== 'deferred') { $('#screrr').textContent = 'A reactive infection screening result requires the decision “Deferred.”'; return; }
+      const d = state.donors.find(x=>x.id===state.screenDonor); if (!d) return;
+      const rec = { at:new Date().toISOString(), ...s, weightKg:+s.weightKg, bpSys:+s.bpSys, bpDia:+s.bpDia, pulse:+s.pulse, temp:+s.temp, hb:has(s.hb)?+s.hb:'', hct:has(s.hct)?+s.hct:'',
+        donorCode:d.code, ownerUid:d.uid, staffUid:fb.user.uid, staffEmail:fb.user.email };
+      const after = { ...d, screenings:[...(d.screenings||[]), rec], weight:+s.weightKg };
+      if (s.bloodType) { after.bloodType = s.bloodType; after.btConfirmed = true; }
+      const b = writeBatch(db);
+      b.set(doc(collection(db,'screenings')), rec);
+      b.set(doc(db,'donors',d.code), donorPublic(after));
+      b.update(doc(db,'donorsPrivate',d.code), { weight:+s.weightKg });
+      run(() => b.commit(), `Screening saved for Donor ${d.code}: ${DECISIONS[s.decision]}.`);
+    });
+  },
+  rules(){
+    document.querySelectorAll('tbody tr').forEach(tr => tr.querySelector('th').addEventListener('click', () => {
+      const on = tr.classList.contains('on');
+      document.querySelectorAll('tbody tr').forEach(x=>x.classList.remove('on'));
+      if (!on) tr.classList.add('on');
+    }));
+  },
+  hospitals(){
+    document.querySelectorAll('form[data-hospform]').forEach(f => f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const h = state.hospitals.find(x=>x.id===f.dataset.hospform); if (!h) return;
+      const v = Object.fromEntries(new FormData(f));
+      const data = { name:v.name.trim() || h.name, kind:v.kind, address:v.address.trim(), contact:v.contact.trim(), order:h.order ?? 99 };
+      if (await run(() => setDoc(doc(db,'hospitals',h.id), data), 'Facility details saved.')) { state.editHosp = null; render(); }
+    }));
+  }
+};
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.id === 'signout') { signOut(auth); state.tab = 'home'; state.authMode = 'signin'; return toast('Signed out.'); }
+  if (t.dataset.authmode) { state.authMode = t.dataset.authmode; return render(); }
+  if (t.dataset.tab) return go(t.dataset.tab);
+  if (t.dataset.go) return go(t.dataset.go);
+  if (t.dataset.open) return go('requests', t.dataset.open);
+  if (t.dataset.as) { if ([...$('#viewas').options].some(o=>o.value===t.dataset.as)) state.viewAs = t.dataset.as; return go(t.dataset.as==='staffhc' ? state.tab : 'inbox'); }
+  if (t.dataset.screen) { state.screenDonor = t.dataset.screen; return go('screening'); }
+  if (t.dataset.edithosp !== undefined) { state.editHosp = t.dataset.edithosp || null; return render(); }
+  if (t.dataset.addhosp) {
+    const ref = doc(collection(db,'hospitals'));
+    run(() => setDoc(ref, { name:'New facility', kind:'Hospital', address:'', contact:'', order:99 })).then(ok => { if (ok) { state.editHosp = ref.id; render(); } });
+    return;
+  }
+  if (t.dataset.respond) {
+    const r = state.requests.find(x=>x.id===t.dataset.r); const d = me(); if (!r||!d) return;
+    return run(() => updateDoc(doc(db,'requests',r.code), { ['responses.'+d.code]: t.dataset.respond }),
+      t.dataset.respond==='accepted' ? 'Accepted. Hospital staff will contact you to arrange the donation.' : 'Response saved.');
+  }
+  if (t.dataset.donated) {
+    const r = state.requests.find(x=>x.id===state.detail); const d = state.donors.find(x=>x.id===t.dataset.donated); if (!r||!d) return;
+    const donated = r.donated.includes(d.code) ? r.donated : [...r.donated, d.code];
+    const status = donated.length >= r.units ? 'fulfilled' : r.status;
+    const b = writeBatch(db);
+    b.update(doc(db,'requests',r.code), { donated, status });
+    b.update(doc(db,'donors',d.code), { lastDonation:today(), donorType:'repeat' });
+    return run(() => b.commit(), status==='fulfilled' ? 'Donation recorded. Request fulfilled.' : `Donation recorded. ${r.units - donated.length} unit${r.units-donated.length>1?'s':''} still needed.`);
+  }
+  if (t.dataset.cancel) {
+    const r = state.requests.find(x=>x.id===t.dataset.cancel); if (!r) return;
+    if (!confirm('Cancel this request? Donors will no longer see it as open.')) return;
+    return run(() => updateDoc(doc(db,'requests',r.code), { status:'cancelled' }), 'Request cancelled.');
+  }
+  if (t.dataset.notifylate) {
+    const r = state.requests.find(x=>x.id===t.dataset.notifylate); if (!r) return;
+    const before = r.notified.length;
+    const n = notify(r, match(r.bloodType).eligible);
+    const b = writeBatch(db);
+    b.update(doc(db,'requests',r.code), { notified: arrayUnion(...r.notified.slice(before)) });
+    queueSms(b);
+    return run(() => b.commit(), `${n} more donor${n>1?'s':''} alerted.`);
+  }
+  if (t.dataset.settype) {
+    const r = state.requests.find(x=>x.id===t.dataset.settype); const sel = document.querySelector('input[name="setbt"]:checked');
+    if (!r) return; if (!sel) return toast('Choose the confirmed blood type first.');
+    const r2 = { ...r, notified:[...r.notified], bloodType:sel.value, status:'open' };
+    const n = notify(r2, match(r2.bloodType).eligible);
+    const b = writeBatch(db);
+    b.update(doc(db,'requests',r.code), { bloodType:r2.bloodType, status:'open', notified:r2.notified });
+    queueSms(b);
+    return run(() => b.commit(), n ? `Blood type confirmed. ${n} compatible donor${n>1?'s':''} alerted.` : 'Blood type confirmed. No eligible compatible donors yet.');
+  }
+});
+document.addEventListener('submit', e => {
+  const f = e.target.closest('form[data-lookup]'); if (!f) return;
+  e.preventDefault();
+  const code = (f.code.value || '').replace(/\D/g,'');
+  const msg = f.querySelector('.lk-msg');
+  const say = m => { msg.textContent = m; msg.className = 'reasons lk-msg'; };
+  if (!signedIn()) return say('Sign in first to look up a record.');
+  if (code.length !== 10) return say('Enter the full 10-digit ID.');
+  const d = state.donors.find(x => x.code === code);
+  if (d) {
+    if (fb.profile?.donorCode === code) { state.viewAs = code; go('inbox'); return toast(`Opened your donor record ${code}.`); }
+    if (isStaffRole()) { state.screenDonor = code; go('screening'); return toast(`Opened Donor ${code}.`); }
+    return say('Donor records can only be opened by the donor’s own account or by healthcare staff.');
+  }
+  const r = state.requests.find(x => x.code === code);
+  if (r) { go('requests', r.id); return toast(`Opened Request ${code}.`); }
+  say('No record found with that ID. Check the number and try again.');
+});
+$('#viewas').addEventListener('change', e => {
+  state.viewAs = e.target.value;
+  if (state.viewAs !== 'staff' && state.viewAs !== 'staffhc') go('inbox'); else render();
+});
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if ((TABS.some(t=>t.id===h) || h==='account') && h!==state.tab) go(h); });
+
+const h0 = location.hash.slice(1);
+if (TABS.some(t=>t.id===h0) || h0==='account') { state.tab = h0; state.detail = null; }
+
+/* =====================================================================
+   DATABASE (Firebase)
+   Data is stored in Firebase Firestore. Collections:
+     users/{uid}            role ('user' or 'staff') and donorCode
+     donors/{code}          PUBLIC donor info (no name, no phone)
+     donorsPrivate/{code}   name, phone, email, barangay, birthdate, weight (staff + owner only)
+     screenings/{id}        screening records (staff + owner only)
+     requests/{code}        PUBLIC request info (no patient name, no phone)
+     requestsPrivate/{code} patient and requester details (staff + owner only)
+     hospitals/{id}         hospital directory (everyone can read, staff edit)
+     sms/{id}               simulated SMS log (Donor ID only)
+   Security rules (firestore.rules) decide who can read and write each one.
+   ===================================================================== */
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let state = { donors:[], hospitals:[], requests:[], sms:[], viewAs:'staff', tab:'home', detail:null, screenDonor:null, editHosp:null };
+const fb = { user:null, profile:null, ready:false, unsubs:[] };
+const raw = { donors:{}, priv:{}, scr:{}, reqs:{}, reqPriv:{} };
+let outbox = [];                       // SMS created by notify(), written by flushSms()
+const save = () => {};                 // kept so old UI code still works; data is saved by the functions below
+
+const addYears = (d, y) => d ? String(+d.slice(0,4) + y) + d.slice(4) : null;   // '2003-05-01' + 18 -> '2021-05-01'
+
+function rebuild(){
+  state.donors = Object.values(raw.donors).map(d => ({ ...d, ...(raw.priv[d.code]||{}), id:d.code,
+    screenings: (raw.scr[d.code]||[]).slice().sort((a,b)=>String(a.at).localeCompare(String(b.at))) }));
+  state.requests = Object.values(raw.reqs).map(r => ({ notified:[], responses:{}, donated:[], ...r, ...(raw.reqPriv[r.code]||{}), id:r.code }))
+    .sort((a,b)=>b.createdAt-a.createdAt);
+  if (fb.ready) render();
+}
+function stopListeners(){ fb.unsubs.forEach(u => { try { u(); } catch(e) {} }); fb.unsubs = []; }
+function listen(ref, fn){ fb.unsubs.push(onSnapshot(ref, fn, err => console.warn('Listener error:', err.message))); }
+const toMap = (snap, key='code') => Object.fromEntries(snap.docs.map(x => [x.data()[key] || x.id, { ...x.data(), _id:x.id }]));
+function groupScreenings(snap){
+  raw.scr = {};
+  snap.docs.forEach(x => { const s = { ...x.data(), id:x.id }; (raw.scr[s.donorCode] = raw.scr[s.donorCode] || []).push(s); });
+}
+
+function startListeners(){
+  stopListeners();
+  for (const k of Object.keys(raw)) raw[k] = {};
+  state.donors = []; state.requests = []; state.sms = [];
+  listen(collection(db,'hospitals'), snap => {
+    state.hospitals = snap.docs.map(x => ({ ...x.data(), id:x.id })).sort((a,b)=>(a.order??99)-(b.order??99) || a.name.localeCompare(b.name));
+    if (isStaff() && snap.empty) seedHospitals();
+    if (fb.ready) render();
+  });
+  if (!fb.user) return;
+  const uid = fb.user.uid, code = fb.profile?.donorCode;
+  listen(collection(db,'donors'), s => { raw.donors = toMap(s); rebuild(); });
+  listen(collection(db,'requests'), s => { raw.reqs = toMap(s); rebuild(); });
+  listen(collection(db,'sms'), s => { state.sms = s.docs.map(x=>x.data()).sort((a,b)=>b.at-a.at); if (fb.ready) render(); });
+  if (isStaffRole()) {
+    listen(collection(db,'donorsPrivate'), s => { raw.priv = toMap(s, '_code'); rebuild(); });
+    listen(collection(db,'requestsPrivate'), s => { raw.reqPriv = toMap(s, '_code'); rebuild(); });
+    listen(collection(db,'screenings'), s => { groupScreenings(s); rebuild(); });
+  } else {
+    if (code) {
+      listen(doc(db,'donorsPrivate',code), s => { raw.priv = s.exists() ? { [code]: s.data() } : {}; rebuild(); });
+      listen(query(collection(db,'screenings'), where('ownerUid','==',uid)), s => { groupScreenings(s); rebuild(); });
+    }
+    listen(query(collection(db,'requestsPrivate'), where('ownerUid','==',uid)), s => { raw.reqPriv = toMap(s, '_code'); rebuild(); });
+  }
+}
+
+async function seedHospitals(){
+  if (seedHospitals.done) return; seedHospitals.done = true;
+  const b = writeBatch(db);
+  DEFAULT_HOSPITALS.forEach((h,i) => b.set(doc(db,'hospitals',h.id), { ...h, order:i }));
+  await b.commit().catch(e => console.warn(e.message));
+}
+
+// Makes a 10-digit ID and checks the database so no two records share one.
+async function uniqueCode(col, prefix){
+  for (let i = 0; i < 8; i++) {
+    const code = newId(prefix);
+    const s = await getDoc(doc(db, col, code));
+    if (!s.exists()) return code;
+  }
+  throw new Error('Could not create a unique ID. Try again.');
+}
+
+// Splits a donor into the public part and the private part.
+function donorPublic(d){
+  const s = lastScreening(d);
+  return { code:d.code, bloodType:d.bloodType, btConfirmed:!!d.btConfirmed, available:!!d.available,
+    lastDonation:d.lastDonation || null, donorType:d.donorType,
+    eligFrom:addYears(d.birthdate, RULES.minAge), eligUntil:addYears(d.birthdate, RULES.maxAge+1),
+    hold: (+currentWeight(d) < RULES.minWeight) || !!(s && s.decision !== 'cleared'),
+    createdAt:d.createdAt, uid:d.uid };
+}
+function donorPrivate(d){
+  return { _code:d.code, uid:d.uid, name:d.name, phone:d.phone, email:d.email||'', barangay:d.barangay,
+    birthdate:d.birthdate, weight:+d.weight, consent:true, consentAt:d.consentAt || Date.now() };
+}
+function requestPublic(r){
+  return { code:r.code, bloodType:r.bloodType, units:r.units, urgency:r.urgency, hospitalId:r.hospitalId, hospitalOther:r.hospitalOther,
+    createdAt:r.createdAt, status:r.status, notified:r.notified, responses:r.responses, donated:r.donated, ownerUid:r.ownerUid };
+}
+function requestPrivate(r){
+  return { _code:r.code, ownerUid:r.ownerUid, patientName:r.patientName, patientBirthdate:r.patientBirthdate,
+    contactName:r.contactName, contactPhone:r.contactPhone, contactEmail:r.contactEmail, note:r.note, consent:true, consentAt:Date.now() };
+}
+function queueSms(b){ outbox.forEach(m => b.set(doc(collection(db,'sms')), m)); outbox = []; }
+async function run(fn, okMsg){
+  try { await fn(); if (okMsg) toast(okMsg); return true; }
+  catch(e){ console.error(e); outbox = []; toast('Not saved: ' + (e.code === 'permission-denied' ? 'you are not allowed to do this.' : e.message)); return false; }
+}
+
+/* ---------- Accounts ---------- */
+async function loadProfile(user){
+  const ref = doc(db,'users',user.uid);
+  let s = await getDoc(ref);
+  if (!s.exists()) { await setDoc(ref, { role:'user', email:user.email, createdAt:Date.now() }); s = await getDoc(ref); }
+  return s.data();
+}
+onAuthStateChanged(auth, async user => {
+  fb.user = user; fb.profile = null;
+  if (user) {
+    try { fb.profile = await loadProfile(user); }
+    catch(e) { console.error(e); toast('Could not load your account: ' + e.message); }
+  }
+  state.viewAs = isStaffRole() ? 'staffhc' : (fb.profile?.donorCode || 'staff');
+  startListeners();
+  fb.ready = true;
+  if (user && state.tab === 'account') state.tab = 'home';
+  render();
+});
+
+</script>
+</body>
+</html>
