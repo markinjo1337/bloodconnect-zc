@@ -13,7 +13,8 @@ async function openRequest(page,code='1000000001'){
 async function verifyTotal(page,total){
  const f=page.locator('[data-received]');await f.locator('[name=total]').fill(String(total));await f.locator('[name=verified]').check();await f.getByRole('button',{name:'Save verified total'}).click();await expect(page.locator('.detail-top')).toContainText(`${total} of 3 units verified received`);
 }
-test.beforeEach(async()=>{await seed();});
+let seededUsers;
+test.beforeEach(async()=>{seededUsers=await seed();});
 test('three-unit workflow, history, no-stock follow-up, and rejected unauthorized save',async({browser,page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  for(let n=1;n<=3;n++){
@@ -29,8 +30,7 @@ test('three-unit workflow, history, no-stock follow-up, and rejected unauthorize
  await page.locator('[data-open="1000000002"]').click();const contact=page.locator('[data-contact]');await contact.locator('[name=result]').selectOption('awaiting reply');await contact.getByRole('button').click();await expect(page.locator('main')).toContainText('Latest contact: awaiting reply');
  // Revoke this account in the emulator while its browser still has stale staff UI.
  const env=await initializeTestEnvironment({projectId:'demo-bloodconnect-zc',firestore:{host:'127.0.0.1',port:8086}});
- const accounts=await (await fetch('http://127.0.0.1:9099/emulator/v1/projects/demo-bloodconnect-zc/accounts')).json();const staff=accounts.users.find(u=>u.email==='staff@example.test');
- await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'users',staff.localId),{role:'user',email:'staff@example.test'}));
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'users',seededUsers.staff),{role:'user',email:'staff@example.test'}));
  const f=page.locator('[data-received]');await f.locator('[name=total]').fill('2');await f.locator('[name=verified]').check();await f.getByRole('button').click();await expect(f.locator('[data-save-error]')).toContainText('Not saved');await expect(page.locator('.detail-top')).toContainText('0 of 3 units verified received');
  await env.cleanup();
  const context=await browser.newContext();const donor=await context.newPage();await login(donor,'donor1');await donor.locator('#nav [data-tab=inbox]').click();await expect(donor.locator('main')).toContainText('My donation history');await expect(donor.locator('main')).toContainText('Donation date:');await expect(donor.locator('[data-received]')).toHaveCount(0);await context.close();expect(errors).toEqual([]);

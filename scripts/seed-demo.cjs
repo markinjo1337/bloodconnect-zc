@@ -25,6 +25,6 @@ async function seed(){
   }
   writes.push(setDoc(doc(db,'coordination','1000000002'),{requestCode:'1000000002',facility:'Fictitious ZC Demo Facility',result:'no stock',contactedAt:new Date(),staffUid:users.staff,revision:1}));
   await Promise.all(writes);
- });await env.cleanup();console.log('Seeded fictitious local accounts and three requests. Password: Defense27!');
+ });await env.cleanup();console.log('Seeded fictitious local accounts and three requests. Password: Defense27!');return users;
 }
 module.exports={seed};if(require.main===module)seed().catch(err=>{console.error(err);process.exitCode=1;});
