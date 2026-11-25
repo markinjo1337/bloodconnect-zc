@@ -15,8 +15,16 @@ for(const width of [360,390,768,1440])test(`light UI, forms and navigation at ${
   await expect(page.locator('main')).not.toContainText('Loading BloodConnect');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   expect(await page.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(243, 245, 248)');
-  if(['request','screening','coordination'].includes(tab))await page.screenshot({path:`artifacts/${tab}-${width}.png`,fullPage:true});
+  if(width<=800){
+   await expect(page.locator('#nav')).toBeHidden();
+   await page.locator('#menuToggle').click();await expect(page.locator('#nav')).toBeVisible();
+   expect(await page.locator('#nav').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBeTruthy();
+   await page.locator(`#nav [data-tab=${tab}]`).click();
+   await expect(page.locator('#menuToggle')).toHaveAttribute('aria-expanded','false');await expect(page.locator('#nav')).toBeHidden();
+  }else{expect(await page.locator('#nav').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBeTruthy();}
+  if(['home','request','screening','coordination'].includes(tab))await page.screenshot({path:`artifacts/${tab}-${width}.png`,fullPage:true});
  }
+ if(width<=800){await page.locator('#menuToggle').click();await page.screenshot({path:`artifacts/menu-${width}.png`,fullPage:true});await page.keyboard.press('Escape');await expect(page.locator('#menuToggle')).toBeFocused();await expect(page.locator('#nav')).toBeHidden();}
  await page.evaluate(raw=>window.setLayoutFixture({user:{uid:'staff',email:'staff@example.test'},profile:{role:'staff'},raw,state:{viewAs:'staffhc'},tab:'requests',detail:'1000000001'}),raw);
  await expect(page.locator('[data-received]')).toBeVisible();await expect(page.locator('main')).toContainText('0 of 3 units verified received');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();

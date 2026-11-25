@@ -52,11 +52,14 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .brand small{display:block;color:var(--muted);font-size:.78rem;margin-top:1px}
 .viewas{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted)}
 .viewas select{max-width:230px}
-nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin}
+nav{display:flex;flex-wrap:wrap;gap:4px;padding:4px 0 8px}
+.nav-group{display:contents}
+.nav-group-title,.mobile-navigation{display:none}
 nav::-webkit-scrollbar{height:4px}
 nav::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
 nav button{background:none;border:0;padding:10px 12px;border-bottom:3px solid transparent;color:var(--muted);font-weight:500;white-space:nowrap;cursor:pointer}
-nav button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--blood)}
+nav button[aria-current="page"]{color:var(--blood);border-bottom-color:var(--blood);background:var(--blood-soft)}
+nav button:hover{background:var(--bg);color:var(--ink)}
 nav .count{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--blood);color:var(--blood-ink);font-size:.75rem;font-weight:600;text-align:center}
 
 main.wrap{padding-top:26px;padding-bottom:60px}
@@ -263,6 +266,50 @@ footer{color:var(--muted);font-size:.84rem;padding:24px 0 36px;border-top:1px so
 .linkbtn{background:none;border:0;padding:0;color:var(--blood);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
 [hidden]{display:none!important}
 .loading{padding:60px 20px;text-align:center;color:var(--muted)}
+
+/* Navigation and forms remain readable without sideways header scrolling. */
+.coordination-step{padding:20px 0 8px;border-top:1px solid var(--line)}
+.coordination-step h3{display:flex;gap:10px;align-items:center}
+.step-number{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--blood-soft);color:var(--blood);font:600 .85rem "Instrument Sans",sans-serif;flex:none}
+.reasons:empty{display:none}
+@media (max-width:800px){
+  header{position:relative;top:auto}
+  .bar{gap:10px;padding:14px 0 10px}
+  .brand{width:100%}
+  .brand small{font-size:.75rem}
+  .bar>.acct{width:100%;justify-content:space-between;gap:8px}
+  #acct{flex:1;justify-content:flex-end;min-width:0}
+  .who-am-i{flex:1;font-size:.78rem}
+  .viewas{flex-wrap:wrap;font-size:.8rem}
+  .viewas select{max-width:100%}
+  .mobile-navigation{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding:10px 0}
+  #currentSection{font-weight:600;color:var(--blood)}
+  #menuToggle{min-height:44px;background:var(--surface)}
+  #nav{display:none}
+  header[data-menu-open="true"] #nav{display:grid;grid-template-columns:1fr 1fr;gap:16px 12px;padding:8px 0 18px}
+  .nav-group{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .nav-group-title{display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:6px 8px}
+  #nav button{white-space:normal;text-align:left;border:1px solid transparent;border-radius:8px;padding:10px;min-height:44px;font-size:.9rem}
+  #nav button[aria-current="page"]{border-color:var(--blood);background:var(--blood-soft)}
+  main.wrap{padding-top:20px;padding-bottom:36px}
+  .hero{padding:22px;gap:22px}
+  .hero h2{font-size:1.7rem}
+  .hero .actions{display:grid;grid-template-columns:1fr;width:100%}
+  .hero .bigtags{justify-content:flex-start}
+  input,select,textarea{font-size:16px}
+  .btn,.btn.sm{min-height:44px}
+  .ref{min-width:0;display:block}
+  .ref thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .ref tbody{display:block}
+  .ref tr{display:grid;padding:14px 16px;border-top:1px solid var(--line);gap:8px}
+  .ref tr:first-child{border-top:0}
+  .ref td{display:block;border:0;padding:0;overflow-wrap:anywhere}
+  .ref td[data-label]::before{content:attr(data-label);display:block;color:var(--muted);font-size:.75rem;font-weight:600;margin-bottom:2px}
+  .coordination-step{padding-top:18px;gap:14px}
+  .coordination-step .btn{width:100%}
+}
+@media (max-width:380px){header[data-menu-open="true"] #nav{grid-template-columns:1fr}.hero{padding:18px}}
+
 </style>
 </head>
 <body>
@@ -280,6 +327,7 @@ footer{color:var(--muted);font-size:.84rem;padding:24px 0 36px;border-top:1px so
         <span class="acct" id="acct"></span>
       </div>
     </div>
+    <div class="mobile-navigation"><span id="currentSection">Home</span><button type="button" class="btn ghost" id="menuToggle" aria-controls="nav" aria-expanded="false"><span aria-hidden="true">☰</span> Menu</button></div>
     <nav id="nav" aria-label="Sections"></nav>
   </div>
 </header>
@@ -515,16 +563,30 @@ function renderViewAs(){
   wrap.hidden = opts.length < 2;
   acct.innerHTML = `<span class="who-am-i">${esc(fb.user.email)}${isStaffRole()?' · <b>Staff</b>':''}</span><button class="btn ghost sm" id="signout">Sign out</button>`;
 }
+function setMenu(open){
+  document.querySelector('header').dataset.menuOpen=String(open);
+  $('#menuToggle').setAttribute('aria-expanded',String(open));
+}
 function renderNav(){
   const p = pendingFor(me());
   const typing = state.requests.filter(r=>r.status==='typing').length;
-  $('#nav').innerHTML = TABS.filter(t => !t.staffOnly || isStaffRole()).map(t => `<button data-tab="${t.id}" ${state.tab===t.id?'aria-current="page"':''}>${t.label}${t.id==='inbox'&&p?`<span class="count">${p}</span>`:''}${t.id==='requests'&&typing&&isStaff()?`<span class="count">${typing}</span>`:''}</button>`).join('');
+  const groups=[['Get started',['home','requests','request']],['Donor services',['register','inbox']],['Healthcare coordination',['coordination','screening','donors']],['Information',['hospitals','rules','sms']]];
+  $('#nav').innerHTML=groups.map(([label,ids])=>{
+    const tabs=ids.map(id=>TABS.find(t=>t.id===id)).filter(t=>!t.staffOnly || isStaffRole());
+    return `<div class="nav-group"><span class="nav-group-title">${label}</span>${tabs.map(t=>`<button data-tab="${t.id}" ${state.tab===t.id?'aria-current="page"':''}>${t.label}${t.id==='inbox'&&p?`<span class="count">${p}</span>`:''}${t.id==='requests'&&typing&&isStaff()?`<span class="count">${typing}</span>`:''}</button>`).join('')}</div>`;
+  }).join('');
+  $('#currentSection').textContent=TABS.find(t=>t.id===state.tab)?.label || 'Account';
 }
+$('#menuToggle').addEventListener('click',()=>setMenu($('#menuToggle').getAttribute('aria-expanded')!=='true'));
+document.addEventListener('keydown',e=>{if(e.key==='Escape' && $('#menuToggle').getAttribute('aria-expanded')==='true'){setMenu(false);$('#menuToggle').focus();}});
 function go(tab, detail=null){
   document.querySelectorAll('form[data-dirty]').forEach(f=>delete f.dataset.dirty);
   formDirty = false; state.tab = tab; state.detail = detail;
   try { history.replaceState(null,'','#'+tab); } catch(e) {}
-  render(); $('#nav [aria-current=page]')?.scrollIntoView({block:'nearest',inline:'nearest'}); window.scrollTo(0,0);
+  const menuHadFocus=$('#nav').contains(document.activeElement);
+  setMenu(false); render();
+  if(menuHadFocus && matchMedia('(max-width: 800px)').matches) $('#menuToggle').focus({preventScroll:true});
+  window.scrollTo(0,0);
 }
 let formDirty = false;
 // Preserve a focused form before the first input event, including autofill.
@@ -669,13 +731,13 @@ function viewHome(){
       <div class="tablewrap"><table class="ref">
         <thead><tr><th>Examination</th><th>Acceptable range</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td><b>Weight</b></td><td>At least ${RULES.minWeight} kg (${kgToLb(RULES.minWeight)} lbs)</td><td>Helps determine how much blood may be safely collected</td></tr>
-          <tr><td><b>Blood pressure</b></td><td>Systolic ${VITALS.bpSys[0]}–${VITALS.bpSys[1]} mmHg, diastolic ${VITALS.bpDia[0]}–${VITALS.bpDia[1]} mmHg</td><td>Checks that circulation is stable</td></tr>
-          <tr><td><b>Pulse rate</b></td><td>${VITALS.pulse[0]}–${VITALS.pulse[1]} beats per minute</td><td>Checks heart rate</td></tr>
-          <tr><td><b>Body temperature</b></td><td>Not above ${VITALS.tempMax}°C (${cToF(VITALS.tempMax)}°F)</td><td>Rules out fever or infection</td></tr>
-          <tr><td><b>Hemoglobin and hematocrit</b></td><td>Assessed by staff per current guidelines</td><td>Checks for enough red blood cells</td></tr>
-          <tr><td><b>Blood typing</b></td><td>ABO and Rh group</td><td>Confirms the donor’s blood type</td></tr>
-          <tr><td><b>Infection screening</b></td><td>HIV, Hepatitis B (HBsAg), Hepatitis C (HCV), Syphilis, and Malaria where required</td><td>Done by an authorized blood service facility</td></tr>
+          <tr><td><b>Weight</b></td><td data-label="Acceptable range">At least ${RULES.minWeight} kg (${kgToLb(RULES.minWeight)} lbs)</td><td data-label="Purpose">Helps determine how much blood may be safely collected</td></tr>
+          <tr><td><b>Blood pressure</b></td><td data-label="Acceptable range">Systolic ${VITALS.bpSys[0]}–${VITALS.bpSys[1]} mmHg, diastolic ${VITALS.bpDia[0]}–${VITALS.bpDia[1]} mmHg</td><td data-label="Purpose">Checks that circulation is stable</td></tr>
+          <tr><td><b>Pulse rate</b></td><td data-label="Acceptable range">${VITALS.pulse[0]}–${VITALS.pulse[1]} beats per minute</td><td data-label="Purpose">Checks heart rate</td></tr>
+          <tr><td><b>Body temperature</b></td><td data-label="Acceptable range">Not above ${VITALS.tempMax}°C (${cToF(VITALS.tempMax)}°F)</td><td data-label="Purpose">Rules out fever or infection</td></tr>
+          <tr><td><b>Hemoglobin and hematocrit</b></td><td data-label="Acceptable range">Assessed by staff per current guidelines</td><td data-label="Purpose">Checks for enough red blood cells</td></tr>
+          <tr><td><b>Blood typing</b></td><td data-label="Acceptable range">ABO and Rh group</td><td data-label="Purpose">Confirms the donor’s blood type</td></tr>
+          <tr><td><b>Infection screening</b></td><td data-label="Acceptable range">HIV, Hepatitis B (HBsAg), Hepatitis C (HCV), Syphilis, and Malaria where required</td><td data-label="Purpose">Done by an authorized blood service facility</td></tr>
         </tbody>
       </table></div>
     </div>
@@ -782,21 +844,21 @@ function coordinationControls(r){
   return `<section class="section panel inline-form"><h3>Staff coordination</h3>
     <p class="note">Manual facility reports only, not live inventory, reservations, or a guarantee of supply.</p>
     <p><b>Latest contact:</b> ${esc(report.result || 'unverified')} · ${esc(report.facility || 'No facility recorded')} · ${reportTime(report.contactedAt)}</p>
-    ${unresolved(r) ? `<form data-contact="${r.code}" data-revision="${report.revision || 0}">
+    ${unresolved(r) ? `<form class="coordination-step" data-contact="${r.code}" data-revision="${report.revision || 0}"><h3><span class="step-number">1</span> Facility contact</h3>
       <div class="grid2"><label>Facility contacted<input name="facility" maxlength="160" value="${esc(report.facility || hospitalName(r))}" required></label>
       <label>Latest contact result<select name="result">${CONTACT_RESULTS.map(result=>`<option ${report.result===result?'selected':''}>${result}</option>`).join('')}</select></label></div>
       <p class="hint">Saving records the current server time. Keep patient and donor details out of this report.</p>
       <div><button class="btn ghost sm" type="submit">Save contact result</button></div>
       <p class="reasons" role="alert" data-save-error></p>
     </form>
-    <form data-received="${r.code}" data-revision="${r.receiptRevision}">
+    <form class="coordination-step" data-received="${r.code}" data-revision="${r.receiptRevision}"><h3><span class="step-number">2</span> Received units</h3>
       <label>Verified cumulative units received<input name="total" type="number" min="0" max="${r.units}" step="1" value="${r.verifiedReceivedUnits}" required></label>
       <p class="hint">Enter the total received so far, not additional units. Include verified units from existing facility supply. Do not count donor acceptances or donation records as received units.</p>
       <label class="check"><input type="checkbox" name="verified" required><span>I verified this cumulative total with the receiving facility.</span></label>
       <div><button class="btn sm" type="submit">Save verified total</button></div>
       <p class="reasons" role="alert" data-save-error></p>
     </form>
-    <form data-fulfill="${r.code}">
+    <form class="coordination-step" data-fulfill="${r.code}"><h3><span class="step-number">3</span> Confirm completion</h3>
       <label class="check"><input type="checkbox" name="confirmed" required><span>I explicitly confirm that the full ${r.units}-unit request has been received and should be fulfilled.</span></label>
       <div><button class="btn ok sm" type="submit">Confirm fulfillment</button></div>
       <p class="reasons" role="alert" data-save-error></p>

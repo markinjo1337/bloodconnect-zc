@@ -2,6 +2,14 @@
 
 Review branch: `repair/defense-coordination`. No production deployment or live-data modification is authorized by this branch.
 
+## Mobile presentation update (November 26, 2026, UTC+8)
+
+At the user's request, the mobile header no longer requires sideways scrolling. At widths up to 800px, a labeled Menu button opens grouped navigation in the page; choosing a destination closes it, and Escape closes it and returns focus. The current section stays visible with the menu closed. Desktop navigation wraps instead of hiding destinations in a horizontal strip. All existing destinations and authorization remain intact.
+
+The light theme remains white cards on a light-gray canvas with the existing deep-red brand color. Mobile controls have 44px minimum button heights and 16px form text. Staff coordination is divided into three labeled, numbered sections (facility contact, received units, completion). The home reference table stacks its full contents on mobile. No medical values or workflow rules changed in this presentation update.
+
+All four layout checks passed, exercising actual menu opening/selection/closing, Escape focus, and navigation overflow at 360/390/768/1440px. Mobile home, expanded menu and staff detail screenshots were visually inspected. The unit/rules suites also passed. The first combined run had one transient emulator profile-read failure (the retry screen appeared), so authenticated workflows were rerun with fresh emulators rather than treating the failed run as passing. All six authenticated workflows passed on that fresh run. Fictitious-data home/menu/detail screenshots are generated under `artifacts/`. Prior security-fix commit `7992158` also passed [GitHub CI](https://github.com/markinjo1337/bloodconnect-zc/actions/runs/45673019705).
+
 ## Follow-up review repairs (November 26, 2026, UTC+8)
 
 The user supplied an independent read-only review of PR head `4053d427`: public desktop/mobile pages and hash navigation passed without captured console errors. That review did not authenticate, test deployed writes, or inspect deployed rules. Its three source findings were reproduced in code and addressed:
@@ -28,7 +36,7 @@ The Netlify PR preview exists at https://deploy-preview-1--bloodconnect-zc.netli
 
 - Hash routes initialized `state.tab` before `state` existed. Reproduced on the original `#requests` page: startup error and persistent Loading screen. Hash initialization now runs after state construction.
 - A device's dark preference automatically changed the original theme. The document now explicitly defaults to light, retaining red branding, layout, forms, and navigation.
-- Form/grid children can shrink safely on narrow screens; progress text wraps and the navigation remains internally scrollable. The active navigation item scrolls into view.
+- Form/grid children can shrink safely on narrow screens; progress text wraps. Navigation now uses a grouped disclosure menu on mobile and wrapping destinations on desktop (superseding the initial scrollable-header repair).
 - Snapshot refreshes no longer erase a form being edited, including the interval between focus and the first input event. Failed saves retain entered data and show an error; success messages follow successful commits.
 - A delayed startup message offers reload if Firebase/CDN services cannot be reached. A failed account-profile read now offers Retry account loading instead of incorrectly telling an existing donor that they are unregistered.
 
