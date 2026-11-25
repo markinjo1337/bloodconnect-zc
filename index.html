@@ -381,6 +381,7 @@ function ageOf(b){
 const newId = prefix => prefix + String(Math.floor(Math.random()*1e7)).padStart(7,'0');
 const C39 = {'0':'nnnwwnwnn','1':'wnnwnnnnw','2':'nnwwnnnnw','3':'wnwwnnnnn','4':'nnnwwnnnw','5':'wnnwwnnnn','6':'nnwwwnnnn','7':'nnnwnnwnw','8':'wnnwnnwnn','9':'nnwwnnwnn','*':'nwnnwnwnn'};
 function barcode(code){
+  if (!/^\d{10}$/.test(String(code || ''))) return '<span>Barcode unavailable</span>';
   const N = 2, W = 5, H = 56; let x = 12, bars = '';
   ('*'+code+'*').split('').forEach(ch => {
     C39[ch].split('').forEach((e,i) => { const w = e==='w' ? W : N; if (i%2===0) bars += `<rect x="${x}" y="0" width="${w}" height="${H}"/>`; x += w; });
@@ -388,7 +389,7 @@ function barcode(code){
   });
   return `<svg class="barcode" viewBox="0 0 ${x+12} ${H}" role="img" aria-label="Barcode ${code}"><rect width="${x+12}" height="${H}" fill="#fff"/><g fill="#000">${bars}</g></svg>`;
 }
-const idCard = (label, code) => `<div class="idcard"><span>${label}</span>${barcode(code)}<b>${code}</b></div>`;
+const idCard = (label, code) => `<div class="idcard"><span>${label}</span>${barcode(code)}<b>${esc(code)}</b></div>`;
 const kgToLb = kg => Math.round(kg * 2.2 * 10) / 10;
 const cToF = c => Math.round((c * 9/5 + 32) * 10) / 10;
 function fmtDate(d){ if (!d) return 'never'; return new Date(d.length===10 ? d+'T00:00:00' : d).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}); }
@@ -866,7 +867,7 @@ function viewRequest(){
         <label>Contact number<input name="contactPhone" required inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX"></label>
       </div>
       <label>Email address <span class="hint">Optional</span><input name="contactEmail" type="email" autocomplete="email"></label>
-      <label>Note for donors <span class="hint">Optional. Don’t include names or contact numbers.</span><textarea name="note"></textarea></label>
+      <label>Note for healthcare staff <span class="hint">Optional. Kept with the private request record.</span><textarea name="note"></textarea></label>
       ${termsBox('request')}
       <p class="reasons" id="reqerr" role="alert"></p>
       <div><button class="btn" type="submit">Post request</button></div>
@@ -1164,7 +1165,7 @@ const bind = {
       if (miss.length) { $('#regerr').textContent = 'Add ' + miss.join(', ') + ' to register.'; return; }
       if (!agreedAll(v)) { $('#regerr').textContent = 'Tick all three boxes under Terms and Conditions and Data Privacy to register.'; return; }
       const btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Registering…';
-      let d, n = 0;
+      let d, n = 0, alertsFailed = false;
       const ok = await run(async () => {
         const code = await uniqueCode('donors','000');
         d = { id:code, code, uid:fb.user.uid, name:v.name.trim(), bloodType:v.bloodType, btConfirmed:false, birthdate:v.birthdate, phone:v.phone.trim(), email:(v.email||'').trim(),
@@ -1180,7 +1181,7 @@ const bind = {
           state.requests.filter(r=>r.status==='open' && r.bloodType && (COMPAT[r.bloodType] || []).includes(d.bloodType)).forEach(r => {
             if (notify({...r,notified:[...r.notified]},[d])) { n++; b2.update(doc(db,'requests',r.code), { notified: arrayUnion(d.code) }); }
           });
-          queueSms(b2); if (n && !await run(() => b2.commit())) toast('Registration saved. Matching alerts could not be saved; staff can retry from the request.');
+          queueSms(b2); if (n && !await run(() => b2.commit())) { alertsFailed=true; n=0; }
         }
       });
       if (!ok) { btn.disabled = false; btn.textContent = 'Register as donor'; return; }
@@ -1188,7 +1189,7 @@ const bind = {
       startListeners();
       go('inbox');
       const e2 = eligibility(d);
-      toast(`Registered. Your Donor ID is ${d.code}. Save it.` + (e2.length ? ` Not eligible yet: ${e2[0]}.` : n ? ` You have ${n} open alert${n>1?'s':''}.` : ''));
+      toast(`Registered. Your Donor ID is ${d.code}. Save it.` + (alertsFailed ? ' Matching alerts were not saved; ask staff to retry from the request.' : e2.length ? ` Not eligible yet: ${e2[0]}.` : n ? ` You have ${n} open alert${n>1?'s':''}.` : ''));
     });
   },
   inbox(){
@@ -1365,8 +1366,8 @@ const save = () => {};                 // kept so old UI code still works; data 
 const addYears = (d, y) => d ? String(+d.slice(0,4) + y) + d.slice(4) : null;   // '2003-05-01' + 18 -> '2021-05-01'
 
 function rebuild(){
-  state.donors = Object.values(raw.donors).map(d => ({ ...d, ...(raw.priv[d.code]||{}), id:d.code,
-    screenings: (raw.scr[d.code]||[]).slice().sort((a,b)=>String(a.at).localeCompare(String(b.at))) }));
+  state.donors = Object.values(raw.donors).map(record => { const d={...record,code:record.code || record._id}; return ({ ...d, ...(raw.priv[d.code]||{}), id:d.code,
+    screenings: (raw.scr[d.code]||[]).slice().sort((a,b)=>String(a.at).localeCompare(String(b.at))) }); });
   state.requests = Object.values(raw.reqs).map(r => normalizeRequest({ ...r, ...(raw.reqPriv[r.code]||{}), id:r.code }))
     .sort((a,b)=>b.createdAt-a.createdAt);
   if (fb.ready) render();

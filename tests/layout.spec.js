@@ -21,6 +21,8 @@ for(const width of [360,390,768,1440])test(`light UI, forms and navigation at ${
  await expect(page.locator('[data-received]')).toBeVisible();await expect(page.locator('main')).toContainText('0 of 3 units verified received');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
  await page.screenshot({path:`artifacts/detail-${width}.png`,fullPage:true});
+ await page.evaluate(raw=>window.setLayoutFixture({user:{uid:'staff',email:'staff@example.test'},profile:{role:'staff'},raw,state:{viewAs:'staffhc'},tab:'requests',detail:'1000000003'}),raw);
+ await expect(page.locator('.detail-top')).toContainText('Cancelled');
  await page.evaluate(raw=>window.setLayoutFixture({user:{uid:'donor1',email:'donor1@example.test'},profile:{role:'user',donorCode:'0000000001'},raw,state:{viewAs:'0000000001'},tab:'inbox'}),raw);
  await expect(page.getByRole('heading',{name:'My donation history'})).toBeVisible();
  await expect(page.locator('nav')).not.toContainText('Coordination');

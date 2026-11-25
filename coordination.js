@@ -2,7 +2,8 @@
 export const CONTACT_RESULTS = ['unverified', 'awaiting reply', 'no stock', 'possible availability', 'referral'];
 export const BLOOD_TYPES = ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
 export function normalizeRequest(record) {
-  return { ...record,
+  const code = record.code || record._id || record.id;
+  return { ...record, code, id:code,
     notified: Array.isArray(record.notified) ? record.notified : [],
     responses: record.responses && typeof record.responses === 'object' && !Array.isArray(record.responses) ? record.responses : {},
     donated: Array.isArray(record.donated) ? record.donated : [],
