@@ -16,7 +16,7 @@ setDoc(doc(f,'users','staff'),{role:'staff'}),setDoc(doc(f,'users','requester'),
 setDoc(ref(f),request()),setDoc(ref(f,'requestsPrivate'),{ownerUid:'requester',patientName:'Fictitious Patient'}),setDoc(ref(f,'donorsPrivate',dcode),{uid:'donor1',name:'Fictitious Donor'})]);});});
 const receipt=(total,revision=1)=>({verifiedReceivedUnits:total,receiptRevision:revision,receiptVerifiedBy:'staff',receiptVerifiedAt:serverTimestamp()});
 const fulfilled=()=>({status:'fulfilled',fulfillmentConfirmed:true,fulfilledBy:'staff',fulfilledAt:serverTimestamp()});
-async function donation(client){const b=writeBatch(client);b.set(ref(client,'donations',code+'_'+dcode),{requestCode:code,donorCode:dcode,ownerUid:'donor1',staffUid:'staff',recordedAt:serverTimestamp(),donatedOn:'2026-11-25',facility:'Fictitious Facility'});b.update(ref(client),{donated:[dcode]});return b.commit();}
+async function donation(client,actor='staff'){const b=writeBatch(client);b.set(ref(client,'donations',code+'_'+dcode),{requestCode:code,donorCode:dcode,ownerUid:'donor1',staffUid:actor,recordedAt:serverTimestamp(),donatedOn:'2026-11-25',facility:'Fictitious Facility'});b.update(ref(client),{donated:[dcode]});return b.commit();}
 test('three-unit scenario enforced by real Firestore rules',async()=>{
   const staff=db('staff');
   for(let n=1;n<=3;n++)await assertSucceeds(updateDoc(ref(db('donor'+n)),{['responses.000000000'+n]:'accepted'}));
@@ -31,11 +31,14 @@ test('three-unit scenario enforced by real Firestore rules',async()=>{
   assert.equal((await getDoc(ref(staff))).data().status,'fulfilled');
 });
 test('nonstaff cannot write received totals, contact reports, donations, screening, or fulfillment',async()=>{
+  // Otherwise-valid writes: failure must come from authorization, not malformed data or incomplete units.
+  await updateDoc(ref(db('donor1')),{'responses.0000000001':'accepted'});
+  await updateDoc(ref(db('staff')),receipt(3));
   for(const uid of ['requester','donor1','outsider']){const c=db(uid);
-    await assertFails(updateDoc(ref(c),receipt(3)));
-    await assertFails(updateDoc(ref(c),fulfilled()));
+    await assertFails(updateDoc(ref(c),{...receipt(2,2),receiptVerifiedBy:uid}));
+    await assertFails(updateDoc(ref(c),{...fulfilled(),fulfilledBy:uid}));
     await assertFails(setDoc(ref(c,'coordination'),{requestCode:code,facility:'Fictitious',result:'no stock',contactedAt:serverTimestamp(),staffUid:uid,revision:1}));
-    await assertFails(donation(c));
+    await assertFails(donation(c,uid));
     await assertFails(setDoc(ref(c,'screenings','fake'),{ownerUid:'donor1',donorCode:dcode,staffUid:uid}));
     await assertFails(updateDoc(doc(c,'users',uid),{role:'staff'}));
   }
