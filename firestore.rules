@@ -65,6 +65,8 @@ service cloud.firestore {
         return changed().hasOnly(['status','fulfillmentConfirmed','fulfilledBy','fulfilledAt'])
           && r.status == 'fulfilled' && knownType(r.bloodType)
           && r.units is int && r.units > 0 && resource.data.get('verifiedReceivedUnits',0) >= r.units
+          && resource.data.get('receiptRevision',0) >= 1 && resource.data.receiptVerifiedAt is timestamp
+          && resource.data.receiptVerifiedBy is string
           && r.fulfillmentConfirmed == true && r.fulfilledBy == request.auth.uid && r.fulfilledAt == request.time;
       }
       function donationUpdate() {
@@ -96,7 +98,7 @@ service cloud.firestore {
           || (request.resource.data.status == 'typing' && request.resource.data.bloodType == null && request.resource.data.notified == []))
         && consented(getAfter(/databases/$(database)/documents/requestsPrivate/$(code)).data);
       allow update: if openRequest(resource.data) && (
-        (isStaff() && (receiptUpdate() || fulfillmentUpdate() || donationUpdate()
+        (isStaff() && (receiptUpdate() || fulfillmentUpdate() || (changed().hasOnly(['donated']) && donationUpdate())
           || (resource.data.status == 'typing' && changed().hasOnly(['bloodType','status','notified'])
             && request.resource.data.status == 'open' && knownType(request.resource.data.bloodType))))
         || (signedIn() && notifyUpdate())

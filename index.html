@@ -770,7 +770,7 @@ function coordinationControls(r){
       <label class="check"><input type="checkbox" name="confirmed" required><span>I explicitly confirm that the full ${r.units}-unit request has been received and should be fulfilled.</span></label>
       <div><button class="btn ok sm" type="submit">Confirm fulfillment</button></div>
       <p class="reasons" role="alert" data-save-error></p>
-    </form>` : `<p>Request closed. ${r.status==='fulfilled' ? 'Explicit staff confirmation recorded: '+reportTime(r.fulfilledAt) : 'Cancelled.'}</p>`}
+    </form>` : `<p>Request closed. ${r.status==='fulfilled' ? (r.fulfillmentConfirmed ? 'Explicit staff confirmation recorded: '+reportTime(r.fulfilledAt) : 'Legacy fulfilled record; no explicit confirmation timestamp is available.') : 'Cancelled.'}</p>`}
     <p class="note">Latest received-total verification: ${reportTime(r.receiptVerifiedAt)}. Received totals and fulfillment are saved separately.</p>
   </section>`;
 }
