@@ -28,5 +28,8 @@ for(const width of [360,390,768,1440])test(`light UI, forms and navigation at ${
  await expect(page.locator('nav')).not.toContainText('Coordination');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
  await page.screenshot({path:`artifacts/donor-${width}.png`,fullPage:true});
+ await page.evaluate(()=>window.setLayoutFixture({user:{uid:'donor1',email:'donor1@example.test'},profile:null,raw:{},state:{viewAs:'staff'},tab:'register'}));
+ await expect(page.getByRole('heading',{name:'Account temporarily unavailable'})).toBeVisible();
+ await expect(page.locator('main')).not.toContainText('not registered');
  expect(errors).toEqual([]);
 });

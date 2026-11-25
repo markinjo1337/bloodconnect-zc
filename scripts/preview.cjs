@@ -36,6 +36,7 @@ http.createServer(async(req,res)=>{
   if(!auth&&!firestore){res.writeHead(404);res.end();return;}
   const upstream=http.request({hostname:'127.0.0.1',port:auth?9099:8086,path:req.url,method:req.method,headers:{...req.headers,host:auth?'127.0.0.1:9099':'127.0.0.1:8086'}},reply=>{res.writeHead(reply.statusCode,reply.headers);reply.pipe(res);});
   upstream.on('error',()=>{res.writeHead(503);res.end('Local emulator not running. Start npm run emulators.');});
+  res.on('close',()=>{if(!res.writableEnded) upstream.destroy();});
   req.pipe(upstream);
 }).listen(Number(process.env.PORT||3000),'0.0.0.0',()=>console.log('Isolated emulator preview listening on '+(process.env.PORT||3000)));
 })();
