@@ -70,7 +70,7 @@ test('donation is immutable and owner history/private records are protected',asy
 test('cannot impersonate another donor or inject arbitrary response states',async()=>{
   await assertFails(updateDoc(ref(db('donor1')),{'responses.0000000002':'accepted'}));
   await assertFails(updateDoc(ref(db('donor1')),{'responses.0000000001':'donated'}));
-  await assertFails(updateDoc(ref(db('outsider')),{responses:{'':'accepted'}}));
+  await assertFails(updateDoc(ref(db('outsider')),{responses:{[dcode]:'accepted'}}));
   await assertFails(setDoc(doc(db('attacker'),'users','attacker'),{role:'user',donorCode:dcode}));
 });
 test('request creation must have consent and no preloaded received units',async()=>{
