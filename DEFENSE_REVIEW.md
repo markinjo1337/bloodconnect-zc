@@ -33,18 +33,29 @@ Review branch: `repair/defense-coordination`. No production deployment or live-d
 
 ## Verification status
 
-Local completed checks:
+**21 tests passed in GitHub CI** against disposable Firebase Auth/Firestore emulators and Chromium: [successful run](https://github.com/markinjo1337/bloodconnect-zc/actions/runs/45615615332), tested revision `f6795bd4adf4b2022c526e8f8754daa73549362d`. Test evidence (screenshots and browser results) is available in that run's artifact. No production account or record was used.
 
-- 5/5 coordination unit tests: acceptance/donation separation, 2-of-3 rejection, full total plus explicit confirmation, old-record defaults, and urgency/time queue ordering.
-- 4/4 Chromium layout sweeps at 360, 390, 768, and 1440 px, including light theme under a dark OS preference, home, requests, request form, donor registration, screening, staff queue, facility directory, rules, SMS, request details, and donor history. No document-wide horizontal overflow or uncaught page JavaScript errors in these **fictitious layout-fixture tests**.
-- Visually inspected mobile home and request coordination screenshots.
-- Syntax and whitespace checks passed.
+- 5 coordination unit tests: acceptance/donation separation, 2-of-3 rejection, full total plus explicit confirmation, old-record defaults, and urgency/time queue ordering.
+- 8 security-rules tests: staff-only writes, owner privacy, duplicate donation rejection, donor impersonation rejection, consent, legacy totals, unknown blood type, receipt revisions, and separate fulfillment confirmation. The Firestore rules compiled and ran in the emulator.
+- 4 Chromium layout sweeps at 360, 390, 768, and 1440 px: light theme under a dark OS preference, existing screens, new coordination controls, and legacy records. No document-wide horizontal overflow or uncaught page JavaScript errors in these fictitious fixture tests. Mobile home/detail and desktop request form were also visually inspected.
+- 4 authenticated browser workflows: full three-unit flow and donor history; no-stock follow-up and rejected save after staff-role revocation; stale receipt form rejection; request consent/ID lookup/screening; account creation and donor registration. Some scenarios share a test case.
+- Syntax and whitespace checks passed. The compatibility table and medical thresholds were compared directly with the original commit and are unchanged.
+- Development dependency audit after updating the test CLI/Node transport: zero high/critical, 14 moderate advisories. These npm dependencies are test/preview tooling; the production browser SDK remains 11.0.2. Do not interpret this as a security audit of the live deployment.
 
-Not yet verified locally:
+| Requested scenario | Verified result |
+| --- | --- |
+| Three donor acceptances | Open, zero received units |
+| Record a donation | Open; history recorded, received total unchanged |
+| Two verified received units | One outstanding |
+| Attempt fulfillment at two | Rejected by UI transaction validation and Firestore rules |
+| Three verified received units | Still open until staff explicitly confirms fulfillment |
+| Three units plus explicit confirmation | Fulfilled |
+| No stock and no donors | Open and visible in the staff queue |
+| Non-staff staff-only write | Denied; failed-save UI does not show success |
 
-- Firestore rules compilation, permission enforcement, and authenticated end-to-end workflow. The Firestore emulator download was denied by the environment network policy; the attempted rules suite stopped during setup with `ECONNREFUSED 127.0.0.1:8086`. These are **not passing tests**.
-- The PR workflow runs eight rules tests and three authenticated browser scenarios, including the full three-unit scenario, no-stock follow-up, duplicate donation rejection, nonstaff writes, owner privacy, stale receipt forms, failed saves after staff-role revocation, consent, ID lookup, and screening. Record its actual result before marking this repair ready.
-- Production Netlify source, deployed rules, real Firebase authentication, live records, real-device browsers, and attached-document screenshot comparison have not been tested.
+The initial local emulator attempt was blocked by the environment hostname policy and stopped during setup (`ECONNREFUSED 127.0.0.1:8086`); it was **not** a passing test. CI provided the successful independent emulator execution instead. Earlier CI setup/test-harness failures were corrected, not ignored. Subsequent commits strengthen the unauthorized-write fixtures without changing the application workflow.
+
+Still unverified: production Netlify source, deployed Firestore rules, real Firebase accounts, live records, physical mobile devices, and the separately mentioned attached-document screenshots. The local preview server responds on port 3000, but its emulator backend and a user-accessible HTTP preview URL remain blocked by environment settings. **A working local authenticated demo is not yet delivered.**
 
 ## Preview and repeatable tests
 
@@ -72,6 +83,6 @@ The seed script resets only `demo-bloodconnect-zc` on `127.0.0.1`; the rules sui
 
 ## Documentation differences and release prerequisites
 
-`GABAY.md` predates these changes: it lists four app files (now also ship `coordination.js`), says an empty directory seeds automatically (now an explicit staff action), and does not describe receipt verification, coordination, or donation history. It correctly describes Firebase roles, public/private records, and simulated SMS. Its deploy instructions have not been executed. The separately mentioned attached documentation must still be provided for a full discrepancy/screenshot comparison.
+`GABAY.md` predates these changes: it lists four app files (now also ship `coordination.js`), says an empty directory seeds automatically (now an explicit staff action), and does not describe receipt verification, coordination, or donation history. The request-note label now correctly identifies its existing private/staff audience. It correctly describes Firebase roles, public/private records, and simulated SMS. Its deploy instructions have not been executed. The separately mentioned attached documentation must still be provided for a full discrepancy/screenshot comparison.
 
-Before any later production release: verify the live source/configuration, complete emulator tests and review their evidence, review actual deployed rules, and plan the app/rules release together. Existing rules do not protect the new workflow; hiding controls is insufficient. There is no data migration or inferred backfill in this branch. Do not merge/deploy while these verification items remain open.
+Before any later production release: verify the live source/configuration, review the passing emulator/CI evidence, review actual deployed rules, and plan the app/rules release together. Existing rules do not protect the new workflow; hiding controls is insufficient. There is no data migration or inferred backfill in this branch. Do not merge/deploy while these verification items remain open.
