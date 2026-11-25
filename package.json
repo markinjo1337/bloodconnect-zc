@@ -30,7 +30,10 @@
     "@playwright/test": "^1.56.1",
     "esbuild": "^0.25.12",
     "firebase": "^11.0.2",
-    "firebase-tools": "^14.27.0"
+    "firebase-tools": "15.37.0"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@grpc/grpc-js": "1.14.7"
+  }
 }
