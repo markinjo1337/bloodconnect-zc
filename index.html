@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -52,8 +52,9 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .brand small{display:block;color:var(--muted);font-size:.78rem;margin-top:1px}
 .viewas{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted)}
 .viewas select{max-width:230px}
-nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:0;scrollbar-width:none}
-nav::-webkit-scrollbar{display:none}
+nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin}
+nav::-webkit-scrollbar{height:4px}
+nav::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
 nav button{background:none;border:0;padding:10px 12px;border-bottom:3px solid transparent;color:var(--muted);font-weight:500;white-space:nowrap;cursor:pointer}
 nav button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--blood)}
 nav .count{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--blood);color:var(--blood-ink);font-size:.75rem;font-weight:600;text-align:center}
@@ -94,12 +95,12 @@ main.wrap{padding-top:26px;padding-bottom:60px}
 
 /* forms */
 form{display:grid;gap:16px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-label{display:grid;gap:6px;font-weight:500;font-size:.92rem}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+label{min-width:0;display:grid;gap:6px;font-weight:500;font-size:.92rem}
 label .hint{font-weight:400;color:var(--muted);font-size:.82rem}
-input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+input,select,textarea{min-width:0;max-width:100%;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 textarea{min-height:76px;resize:vertical}
-fieldset{border:0;padding:0;margin:0}
+fieldset{min-width:0;border:0;padding:0;margin:0}
 legend{font-weight:500;font-size:.92rem;margin-bottom:8px}
 .picker{display:flex;flex-wrap:wrap;gap:8px}
 .picker label{display:block;cursor:pointer}
@@ -124,7 +125,7 @@ legend{font-weight:500;font-size:.92rem;margin-bottom:8px}
 /* detail */
 .back{background:none;border:0;color:var(--muted);padding:0;margin-bottom:14px;cursor:pointer;font-weight:500}
 .detail-top{display:flex;gap:18px;align-items:center;padding:20px;flex-wrap:wrap}
-.detail-top .meta{flex:1;min-width:220px}
+.detail-top .meta{flex:1;min-width:min(220px,100%);overflow-wrap:anywhere}
 .detail-top .meta p{color:var(--muted);margin-top:4px}
 .meter{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:12px;border:1px solid var(--line)}
 .meter i{display:block;height:100%;background:var(--ok)}
@@ -188,7 +189,7 @@ footer{color:var(--muted);font-size:.84rem;padding:24px 0 36px;border-top:1px so
   .preview{position:static}
   .grid2{grid-template-columns:1fr}
   .req{flex-wrap:wrap}
-  .req .prog{text-align:left;width:100%;display:flex;gap:16px}
+  .req .prog{text-align:left;width:100%;display:flex;flex-wrap:wrap;gap:6px 16px}
 
   .viewas{width:100%}
   .viewas select{max-width:none;flex:1}
@@ -258,7 +259,7 @@ footer{color:var(--muted);font-size:.84rem;padding:24px 0 36px;border-top:1px so
 .termstext ol{margin:0;padding-left:24px;display:grid;gap:6px}
 @media (max-width:480px){ .lookup{grid-template-columns:1fr} }
 .acct{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.who-am-i{font-size:.84rem;color:var(--muted)}
+.who-am-i{overflow-wrap:anywhere;font-size:.84rem;color:var(--muted)}
 .linkbtn{background:none;border:0;padding:0;color:var(--blood);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
 [hidden]{display:none!important}
 .loading{padding:60px 20px;text-align:center;color:var(--muted)}
@@ -287,18 +288,29 @@ footer{color:var(--muted);font-size:.84rem;padding:24px 0 36px;border-top:1px so
 
 <div class="wrap">
   <footer>
-    <span>BloodConnect ZC follows the Data Privacy Act of 2012 (RA 10173). Names and contact numbers are never shown publicly and are visible only to authorized healthcare staff. SMS alerts are recorded in the SMS log.</span>
+    <span>BloodConnect ZC is a rule-based donor matching and staff-assisted coordination prototype. It is not live blood inventory and does not guarantee immediate blood supply. Private records are restricted to their owner and authorized staff. SMS is simulated.</span>
   </footer>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script>
+setTimeout(() => {
+  const loading = document.querySelector('#main .loading');
+  if (loading) {
+    loading.textContent = 'BloodConnect ZC could not finish loading. Check your internet connection and reload. Firebase services must be reachable.';
+    const retry = document.createElement('button'); retry.className = 'btn'; retry.textContent = 'Reload';
+    retry.style.display='block'; retry.style.margin='16px auto'; retry.onclick=()=>location.reload(); loading.append(retry);
+  }
+}, 15000);
+</script>
 <script type="module">
 /* Firebase libraries (loaded from Google's servers) */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, onSnapshot, query, where, writeBatch, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, onSnapshot, query, where, writeBatch, arrayUnion, runTransaction, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 /* Your Firebase project keys are in config.js */
 import { firebaseConfig } from './config.js';
+import { CONTACT_RESULTS, normalizeRequest, unresolved, outstanding, coordinationQueue, validateReceivedTotal, validateFulfillment } from './coordination.js';
 
 /* =====================================================================
    SETTINGS: most changes you need are in this section.
@@ -340,6 +352,7 @@ const SMS_TEXT = (req, hospital) => `BloodConnect ZC: ${req.urgency} request ${r
 const TABS = [
   {id:'home', label:'Home'},
   {id:'requests', label:'Requests'},
+  {id:'coordination', label:'Coordination', staffOnly:true},
   {id:'request', label:'Request blood'},
   {id:'register', label:'Become a donor'},
   {id:'inbox', label:'Donor alerts'},
@@ -381,6 +394,7 @@ const cToF = c => Math.round((c * 9/5 + 32) * 10) / 10;
 function fmtDate(d){ if (!d) return 'never'; return new Date(d.length===10 ? d+'T00:00:00' : d).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}); }
 function fmtDateTime(d){ return new Date(d).toLocaleString('en-PH',{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function ago(t){
+  if (!Number.isFinite(Number(t)) || !t) return 'at an unknown time';
   const m = Math.round((Date.now()-t)/60000);
   if (m < 1) return 'just now';
   if (m < 60) return m + ' min ago';
@@ -484,23 +498,27 @@ function renderViewAs(){
 function renderNav(){
   const p = pendingFor(me());
   const typing = state.requests.filter(r=>r.status==='typing').length;
-  $('#nav').innerHTML = TABS.map(t => `<button data-tab="${t.id}" ${state.tab===t.id?'aria-current="page"':''}>${t.label}${t.id==='inbox'&&p?`<span class="count">${p}</span>`:''}${t.id==='requests'&&typing&&isStaff()?`<span class="count">${typing}</span>`:''}</button>`).join('');
+  $('#nav').innerHTML = TABS.filter(t => !t.staffOnly || isStaffRole()).map(t => `<button data-tab="${t.id}" ${state.tab===t.id?'aria-current="page"':''}>${t.label}${t.id==='inbox'&&p?`<span class="count">${p}</span>`:''}${t.id==='requests'&&typing&&isStaff()?`<span class="count">${typing}</span>`:''}</button>`).join('');
 }
 function go(tab, detail=null){
-  state.tab = tab; state.detail = detail;
+  formDirty = false; state.tab = tab; state.detail = detail;
   try { history.replaceState(null,'','#'+tab); } catch(e) {}
-  render(); window.scrollTo(0,0);
+  render(); $('#nav [aria-current=page]')?.scrollIntoView({block:'nearest',inline:'nearest'}); window.scrollTo(0,0);
 }
+let formDirty = false;
+document.addEventListener('input', e => { if(e.target.closest('main form')) formDirty = true; });
 function render(){
   if (!fb.ready) return;
   renderViewAs(); renderNav();
+  if (formDirty && document.querySelector('#main form')) return;
   if (state.tab === 'account' || (!signedIn() && !PUBLIC_TABS.includes(state.tab))) {
     $('#main').innerHTML = viewAccount();
     return bindAccount();
   }
-  const v = { home:viewHome, requests: state.detail ? viewDetail : viewRequests, request:viewRequest, register:viewRegister, inbox:viewInbox, screening:viewScreening, donors:viewDonors, hospitals:viewHospitals, rules:viewRules, sms:viewSms }[state.tab] || viewHome;
+  const v = { home:viewHome, coordination:viewCoordination, requests: state.detail ? viewDetail : viewRequests, request:viewRequest, register:viewRegister, inbox:viewInbox, screening:viewScreening, donors:viewDonors, hospitals:viewHospitals, rules:viewRules, sms:viewSms }[state.tab] || viewHome;
   $('#main').innerHTML = v();
   bind[state.tab]?.();
+  bindCoordination();
 }
 
 /* ================= Sign in / Create account ================= */
@@ -550,7 +568,7 @@ function lookupBox(title='Look up your record'){
   return `<form class="panel lookup" data-lookup="1">
     <label>${title}<input name="code" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="Enter your 10-digit Donor ID or Request ID"></label>
     <button class="btn" type="submit">Search</button>
-    <p class="hint lk-msg" role="alert">Only people who know the ID can open the record.</p>
+    <p class="hint lk-msg" role="alert">Sign in to look up an ID. Private records remain restricted to their owner and authorized staff.</p>
   </form>`;
 }
 function termsBox(kind){
@@ -563,7 +581,7 @@ function termsBox(kind){
   const req = [
     'The information you give about the patient must be true. False or fake requests will be removed.',
     'BloodConnect ZC does not guarantee that a donor will be found. Keep coordinating with the hospital or the Philippine Red Cross.',
-    'Donated blood is voluntary and free. Buying or selling blood is prohibited under Republic Act No. 7719.',
+    'Blood donation is voluntary and unpaid. Facilities may charge processing or testing fees; this prototype does not promise fee waivers, free units, or priority entitlements.',
     'Authorized healthcare staff, not the requester, contact matched donors. Donor identities and contact numbers stay private.',
     'The patient’s and your personal and health information is processed under the Data Privacy Act of 2012 (RA 10173). It is visible only to authorized healthcare staff and is never shown publicly; the request is identified only by its Request ID.'];
   const items = kind==='donor' ? donor : req;
@@ -592,7 +610,8 @@ function viewHome(){
       </div>
       <div class="bigtags">${['O-','A+','B+','AB-'].map(t=>tag(t,'lg')).join('')}</div>
     </section>
-    <div class="stats"><span><b>${state.donors.length}</b>registered donors</span><span><b>${eligibleNow}</b>eligible to donate today</span><span><b>${open}</b>open requests</span></div>
+    <div class="callout info" style="margin-bottom:18px">Staff-assisted coordination, not live blood inventory. Donor acceptance does not guarantee blood supply. Facilities must verify availability and release; the app makes no reservations.</div>
+    <div class="stats"><span><b>${state.donors.length}</b>registered donors</span><span><b>${eligibleNow}</b>preliminarily eligible donors</span><span><b>${open}</b>open requests</span></div>
     ${lookupBox()}
 
     <div class="section"><h3>Why blood donation matters</h3>
@@ -639,7 +658,7 @@ function viewHome(){
 
     <div class="section"><h3>Your privacy: Data Privacy Act of 2012 (RA 10173)</h3>
       <div class="panel card" style="margin-top:6px">
-        <p>BloodConnect ZC never shows the names or contact numbers of donors or patients in public. Every donor and every request is identified only by a 10-digit ID with a barcode. Names, contact numbers, and screening results are visible only to authorized healthcare staff, who are the ones who contact matched donors and patients. Every donor and requester must agree to the Terms and Conditions and give consent before any information is collected.</p>
+        <p>BloodConnect ZC never shows the names or contact numbers of donors or patients in public. Every donor and every request is identified only by a 10-digit ID with a barcode. Names, contact numbers, and screening results are visible only to authorized healthcare staff, and the record owner. Healthcare staff contact matched donors and patients. Every donor and requester must agree to the Terms and Conditions and give consent before any information is collected.</p>
       </div>
     </div>
 
@@ -647,12 +666,12 @@ function viewHome(){
 }
 
 function reqCard(r){
-  const acc = Object.values(r.responses).filter(x=>x==='accepted').length;
+  const acc = Object.values(r.responses || {}).filter(x=>x==='accepted').length;
   return `<button class="req" data-open="${r.id}">
     ${tag(r.bloodType)}
     <div class="info"><h3>${esc(hospitalName(r))}${statusChip(r)}</h3>
     <p>Request ${r.code}. ${r.status==='typing' ? 'Waiting for the hospital to confirm the patient’s blood type' : `${r.units} unit${r.units>1?'s':''} needed`}, posted ${ago(r.createdAt)}</p></div>
-    <div class="prog"><span><b>${r.donated.length}/${r.units}</b> units donated</span><span><b>${acc}</b> accepted of ${r.notified.length} notified</span></div>
+    <div class="prog"><span><b>${r.verifiedReceivedUnits}/${r.units}</b> verified received</span><span><b>${acc}</b> accepted of ${r.notified.length} notified</span></div>
   </button>`;
 }
 function viewRequests(){
@@ -682,12 +701,12 @@ function viewDetail(){
       ${isStaff() ? `<div class="panel inline-form" style="margin-top:12px"><h3>Set the patient’s confirmed blood type</h3>
         <div class="picker" id="settype">${TYPES.map(t=>`<label><input type="radio" name="setbt" value="${t}"><span>${t}</span></label>`).join('')}</div>
         <div><button class="btn" data-settype="${r.id}">Confirm and notify donors</button></div></div>`
-      : `<p class="muted" style="margin-top:12px">Switch “Viewing as” to Healthcare staff to confirm the blood type.</p>`}`;
+      : `<p class="muted" style="margin-top:12px">Authorized healthcare staff must confirm the blood type.</p>`}`;
   } else {
     const m = match(r.bloodType);
     const late = r.status==='open' ? m.eligible.filter(d=>!r.notified.includes(d.id)) : [];
     body = `<div class="section"><h3>Notified donors</h3>
-      <p class="sub">Donor types that can give to ${esc(r.bloodType)}: ${COMPAT[r.bloodType].join(', ')}. Accepted donors appear first.</p>
+      <p class="sub">Donor types that can give to ${esc(r.bloodType)}: ${(COMPAT[r.bloodType] || []).join(', ') || 'Awaiting confirmed blood type'}. Accepted donors appear first.</p>
       ${notified.length ? `<div class="rows">${notified.map(d=>{
         const s = st(d);
         const label = s==='donated'?'Donated':s==='accepted'?'Accepted':s==='declined'?'Declined':'No reply yet';
@@ -702,7 +721,7 @@ function viewDetail(){
       <div class="rows">${m.blocked.map(d=>`<div class="row">${tag(d.bloodType,'sm')}<div class="who"><b>Donor ${d.code}</b><p>${esc(d.name)}</p><p class="reasons">${eligibility(d).map(esc).join('; ')}</p></div></div>`).join('')}</div></div>`
     : m.blocked.length ? `<p class="muted" style="margin-top:12px">${m.blocked.length} more compatible donor${m.blocked.length>1?'s are':' is'} not eligible today. Details are visible only to healthcare staff.</p>` : ''}`;
   }
-  const pct = Math.min(100, Math.round(r.donated.length/r.units*100));
+  const pct = Math.min(100, Math.round(r.verifiedReceivedUnits/r.units*100));
   return `<button class="back" data-go="requests">‹ All requests</button>
   <div class="panel detail-top">
     ${tag(r.bloodType,'lg')}
@@ -712,14 +731,113 @@ function viewDetail(){
       ${isStaff() ? `<p><b>Staff only:</b> Patient ${esc(r.patientName)}${pa!==null?`, ${pa} years old`:''}. Requester ${esc(r.contactName)}, ${esc(r.contactPhone)}${r.contactEmail?`, ${esc(r.contactEmail)}`:''}</p>`
         : `<p class="muted">Patient and requester details are visible only to authorized healthcare staff.</p>`}
       ${r.note?`<p>Note: ${esc(r.note)}</p>`:''}
-      <div class="meter" aria-label="${r.donated.length} of ${r.units} units donated"><i style="width:${pct}%"></i></div>
-      <p style="margin-top:6px">${r.donated.length} of ${r.units} unit${r.units>1?'s':''} donated</p>
+      <div class="meter" aria-label="${r.verifiedReceivedUnits} of ${r.units} units verified received"><i style="width:${pct}%"></i></div>
+      <p style="margin-top:6px">${r.verifiedReceivedUnits} of ${r.units} units verified received · ${outstanding(r)} outstanding</p><p>${Object.values(r.responses).filter(v=>v==='accepted').length} donor acceptances · ${r.donated.length} recorded donations. These do not confirm received units.</p>
     </div>
     ${canManage && (r.status==='open'||r.status==='typing') ? `<button class="btn ghost sm" data-cancel="${r.id}">Cancel request</button>` : ''}
   </div>
   ${isStaff() && r.status==='open' && notified.some(d=>st(d)==='accepted') ? `<div class="section callout">Staff action: contact the accepted donor${notified.filter(d=>st(d)==='accepted').length>1?'s':''} and the requester to arrange the donation at ${esc(hospitalName(r))}.</div>` : ''}
   <div class="section" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${idCard('Request ID', r.code)}<p class="muted" style="max-width:46ch">Save this Request ID. Use it to track the request without showing the patient’s name.</p></div>
+  ${isStaff() ? coordinationControls(r) : ''}
   ${body}`;
+}
+
+function reportTime(value){
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? fmtDateTime(date) : 'Not recorded';
+}
+function coordinationControls(r){
+  if (!isStaff()) return '';
+  const report = state.coordination[r.code] || {};
+  return `<section class="section panel inline-form"><h3>Staff coordination</h3>
+    <p class="note">Manual facility reports only, not live inventory, reservations, or a guarantee of supply.</p>
+    <p><b>Latest contact:</b> ${esc(report.result || 'unverified')} · ${esc(report.facility || 'No facility recorded')} · ${reportTime(report.contactedAt)}</p>
+    ${unresolved(r) ? `<form data-contact="${r.code}" data-revision="${report.revision || 0}">
+      <div class="grid2"><label>Facility contacted<input name="facility" maxlength="160" value="${esc(report.facility || hospitalName(r))}" required></label>
+      <label>Latest contact result<select name="result">${CONTACT_RESULTS.map(result=>`<option ${report.result===result?'selected':''}>${result}</option>`).join('')}</select></label></div>
+      <p class="hint">Saving records the current server time. Keep patient and donor details out of this report.</p>
+      <div><button class="btn ghost sm" type="submit">Save contact result</button></div>
+      <p class="reasons" role="alert" data-save-error></p>
+    </form>
+    <form data-received="${r.code}" data-revision="${r.receiptRevision}">
+      <label>Verified cumulative units received<input name="total" type="number" min="0" max="${r.units}" step="1" value="${r.verifiedReceivedUnits}" required></label>
+      <p class="hint">Enter the total received so far, not additional units. Include verified units from existing facility supply. Do not count donor acceptances or donation records as received units.</p>
+      <label class="check"><input type="checkbox" name="verified" required><span>I verified this cumulative total with the receiving facility.</span></label>
+      <div><button class="btn sm" type="submit">Save verified total</button></div>
+      <p class="reasons" role="alert" data-save-error></p>
+    </form>
+    <form data-fulfill="${r.code}">
+      <label class="check"><input type="checkbox" name="confirmed" required><span>I explicitly confirm that the full ${r.units}-unit request has been received and should be fulfilled.</span></label>
+      <div><button class="btn ok sm" type="submit">Confirm fulfillment</button></div>
+      <p class="reasons" role="alert" data-save-error></p>
+    </form>` : `<p>Request closed. ${r.status==='fulfilled' ? 'Explicit staff confirmation recorded: '+reportTime(r.fulfilledAt) : 'Cancelled.'}</p>`}
+    <p class="note">Latest received-total verification: ${reportTime(r.receiptVerifiedAt)}. Received totals and fulfillment are saved separately.</p>
+  </section>`;
+}
+function viewCoordination(){
+  if (!isStaff()) return `<div class="panel locked"><h2>Staff coordination</h2><p>Only authorized healthcare staff can access this queue.</p></div>`;
+  const queue = coordinationQueue(state.requests);
+  return `<div class="head"><div><h2>Coordination queue</h2><p>Unresolved requests, ordered by urgency, then oldest posting first.</p></div></div>
+    <div class="callout info" style="margin-bottom:18px">No stock or no donors does not close a request. Follow up directly with facilities. Contact reports are manual and do not reserve blood.</div>
+    ${queue.length ? `<div class="reqs">${queue.map(r=>`<div>${reqCard(r)}<p class="note" style="margin:6px 16px 14px">Latest facility report: <b>${esc(state.coordination[r.code]?.result || 'unverified')}</b> · ${reportTime(state.coordination[r.code]?.contactedAt)} · ${outstanding(r)} units outstanding</p></div>`).join('')}</div>` : '<div class="panel empty">No unresolved requests.</div>'}`;
+}
+function donationHistory(d){
+  const records = state.donations.filter(x=>x.donorCode===d.code).sort((a,b)=>(b.recordedAt?.seconds||0)-(a.recordedAt?.seconds||0));
+  const legacy = state.requests.filter(r=>r.donated.includes(d.code) && !records.some(x=>x.requestCode===r.code));
+  return `<section class="section"><h3>My donation history</h3><p class="sub">Staff-recorded donations are separate from units confirmed received by a patient. No free-unit, fee-waiver, or priority entitlement is created.</p>
+    ${records.length || legacy.length ? `<div class="rows">${records.map(x=>`<div class="row"><div class="who"><b>Request ${esc(x.requestCode)}</b><p>Donation date: ${esc(x.donatedOn)} · ${esc(x.facility)}</p><p>Recorded ${reportTime(x.recordedAt)}</p></div><span class="pill donated">Donation recorded</span></div>`).join('')}${legacy.map(r=>`<div class="row"><div class="who"><b>Request ${esc(r.code)}</b><p>Legacy donation record; date unavailable. This does not establish received units.</p></div></div>`).join('')}</div>` : '<div class="panel empty">No staff-recorded donations yet.</div>'}</section>`;
+}
+async function staffRequestTransaction(code, action){
+  if (!isStaffRole()) throw new Error('Only authorized healthcare staff can perform this action.');
+  return runTransaction(db, async tx => {
+    const ref = doc(db,'requests',code), snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('Request not found.');
+    return action(tx, ref, normalizeRequest(snap.data()));
+  });
+}
+function bindCoordination(){
+  document.querySelectorAll('form[data-contact], form[data-received], form[data-fulfill]').forEach(f => {
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (f.dataset.saving) return;
+      const v = Object.fromEntries(new FormData(f)), button=f.querySelector('button[type=submit]'), error=f.querySelector('[data-save-error]');
+      f.dataset.saving='true'; button.disabled=true; error.textContent='';
+      const code=f.dataset.contact || f.dataset.received || f.dataset.fulfill;
+      try {
+        await staffRequestTransaction(code, async (tx, ref, r) => {
+          if (!unresolved(r)) throw new Error('This request is already closed.');
+          if (f.dataset.contact) {
+            if (!CONTACT_RESULTS.includes(v.result) || !v.facility.trim()) throw new Error('Choose a result and facility.');
+            const contactRef=doc(db,'coordination',code), current=await tx.get(contactRef);
+            const revision=current.data()?.revision || 0;
+            if (revision !== Number(f.dataset.revision)) throw new Error('Another staff member updated this report. Reopen the request before saving.');
+            tx.set(contactRef,{requestCode:code,facility:v.facility.trim(),result:v.result,contactedAt:serverTimestamp(),staffUid:fb.user.uid,revision:revision+1});
+          } else if (f.dataset.received) {
+            if (!v.verified) throw new Error('Verify the received total first.');
+            if (r.receiptRevision !== Number(f.dataset.revision)) throw new Error('Another staff member changed the received total. Reopen the request before saving.');
+            const total=Number(v.total); validateReceivedTotal(r,total);
+            tx.update(ref,{verifiedReceivedUnits:total,receiptRevision:r.receiptRevision+1,receiptVerifiedAt:serverTimestamp(),receiptVerifiedBy:fb.user.uid});
+          } else {
+            validateFulfillment(r, !!v.confirmed);
+            tx.update(ref,{status:'fulfilled',fulfillmentConfirmed:true,fulfilledBy:fb.user.uid,fulfilledAt:serverTimestamp()});
+          }
+        });
+        formDirty=false; render(); toast(f.dataset.contact?'Facility contact result saved.':f.dataset.received?'Verified cumulative total saved. Request remains open until explicit fulfillment.':'Request fulfilled with explicit staff confirmation.');
+      } catch(err) { error.textContent='Not saved: '+err.message; }
+      finally { delete f.dataset.saving; button.disabled=false; }
+    });
+  });
+}
+async function recordDonation(requestCode, donorCode){
+  return staffRequestTransaction(requestCode, async (tx, ref, r) => {
+    const donorRef=doc(db,'donors',donorCode), donationRef=doc(db,'donations',requestCode+'_'+donorCode);
+    const donor=await tx.get(donorRef), existing=await tx.get(donationRef);
+    if (existing.exists() || r.donated.includes(donorCode)) throw new Error('This donation is already recorded.');
+    if (r.status!=='open' || r.responses[donorCode]!=='accepted' || !donor.exists()) throw new Error('An open request and accepted donor are required.');
+    tx.set(donationRef,{requestCode,donorCode,ownerUid:donor.data().uid,donatedOn:today(),facility:hospitalName(r),recordedAt:serverTimestamp(),staffUid:fb.user.uid});
+    tx.update(ref,{donated:arrayUnion(donorCode)});
+    tx.update(donorRef,{lastDonation:today(),donorType:'repeat'});
+  });
 }
 
 function hospitalOptions(){
@@ -850,19 +968,20 @@ function viewInbox(){
       <div class="meta"><h3>Donor ${d.code} ${d.btConfirmed?'<span class="chip ok">Blood type confirmed</span>':''}</h3>
         <p>${a!==null?`${a} years old, `:''}${esc(d.barangay)}. ${d.donorType==='first'?'First-time donor':'Repeat donor'}. Last donation: ${fmtDate(d.lastDonation)}</p>
         <p style="margin-top:6px">Latest screening: ${screeningSummary(lastScreening(d))}</p>
-        <p class="elig ${elig.length?'no':'yes'}">${elig.length?esc(elig.join('; ')):'Eligible to donate today'}</p></div>
+        <p class="elig ${elig.length?'no':'yes'}">${elig.length?esc(elig.join('; ')):'Preliminarily eligible; staff screening required'}</p></div>
       <label class="switch"><input type="checkbox" id="avail" ${d.available?'checked':''}> Available for alerts</label>
     </div>
     <div class="section" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:-8px 0 22px">${idCard('Donor ID', d.code)}<p class="muted" style="max-width:46ch">Save this Donor ID. It’s how you open your record, and how staff identify you without showing your name.</p></div>
     <h3 style="margin-bottom:10px">Open alerts</h3>
     ${open.length ? open.map(alert).join('') : `<div class="panel empty"><p>No open alerts. You’ll get one when a compatible patient needs blood.</p></div>`}
     ${past.length ? `<div class="section"><h3>Past alerts</h3>${past.map(alert).join('')}</div>` : ''}
+    ${donationHistory(d)}
     <div class="section"><h3>My screening records</h3><p class="sub">Only you and authorized healthcare staff can see these details.</p>${historyTable(d)}</div>`;
 }
 
 function viewScreening(){
   if (!isStaff()) return `<div class="head"><div><h2>Donor screening and examination</h2><p>Healthcare staff record each donor’s examination results here before donation.</p></div></div>
-    <div class="panel locked"><p><b>Only healthcare staff can view and record screening results.</b></p><p style="margin-top:6px">Switch “Viewing as” at the top to Healthcare staff.</p><button class="btn" style="margin-top:14px" data-as="staffhc">Switch to Healthcare staff</button></div>`;
+    <div class="panel locked"><p><b>Only healthcare staff can view and record screening results.</b></p><p style="margin-top:6px">Sign in with an authorized staff account.</p></div>`;
   const sorted = state.donors.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   if (!sorted.length) return `<div class="head"><div><h2>Donor screening and examination</h2></div></div><div class="panel empty"><p>No registered donors yet.</p></div>`;
   const sel = state.screenDonor && state.donors.find(d=>d.id===state.screenDonor) ? state.screenDonor : sorted[0].id;
@@ -958,8 +1077,8 @@ function viewHospitals(){
     </form>`:''}
   </div>`;
   return `<div class="head"><div><h2>Hospitals and blood service facilities</h2><p>Find where to donate or where blood requests are coming from.</p></div>
-    ${isStaff()?`<button class="btn" data-addhosp="1">Add facility</button>`:''}</div>
-    <div class="callout info" style="margin-bottom:16px">The Philippine Red Cross Zamboanga City Chapter and Zamboanga City Medical Center are the city’s authorized blood banks. Details marked “To be added” should be confirmed directly with each facility${isStaff()?'.':'; healthcare staff can update them.'}</div>
+    ${isStaff()?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-addhosp="1">Add facility</button>${!state.hospitals.length?'<button class="btn ghost" data-seedhosp="1">Add suggested facilities</button>':''}</div>`:''}</div>
+    <div class="callout info" style="margin-bottom:16px">This directory does not show live inventory or guarantee availability. Facility details and service capabilities must be verified directly. Details marked “To be added” should be confirmed directly with each facility${isStaff()?'.':'; healthcare staff can update them.'}</div>
     <div class="grid2b">${state.hospitals.map(card).join('')}</div>`;
 }
 
@@ -982,9 +1101,9 @@ function viewRules(){
 }
 
 function viewSms(){
-  return `<div class="head"><div><h2>SMS log</h2><p>Alerts sent to matched donors. Donors are identified by Donor ID only, and no names or contact numbers appear in messages. Messages are recorded here; connecting a paid SMS gateway sends them as real texts.</p></div></div>
+  return `<div class="head"><div><h2>SMS log</h2><p>Simulated SMS only: these messages are saved as logs, not sent as texts. Donor alerts are available in this app while it is open. Donor-alert emails and background notifications are not implemented.</p></div></div>
     ${state.sms.length ? `<div class="rows">${state.sms.map(s=>`<div class="sms"><span class="to">To Donor ${esc(s.code)}, ${ago(s.at)}</span><span class="txt">${esc(s.text)}</span></div>`).join('')}</div>`
-    : `<div class="panel empty"><p>No messages yet. Post a request to see the alerts sent.</p></div>`}`;
+    : `<div class="panel empty"><p>No messages yet. Post a request to see simulated messages.</p></div>`}`;
 }
 /* ================= Bindings (what happens when buttons and forms are used) ================= */
 const bind = {
@@ -997,6 +1116,7 @@ const bind = {
     f.patientBirthdate.addEventListener('input', () => { const a = ageOf(f.patientBirthdate.value); $('#pAge').value = a===null?'':`${a} years old`; });
     f.addEventListener('submit', async e => {
       e.preventDefault();
+      if (!f.reportValidity()) return;
       const v = Object.fromEntries(new FormData(f));
       const miss = [];
       if (!v.patientName?.trim()) miss.push('the patient’s complete name');
@@ -1034,6 +1154,7 @@ const bind = {
     f.addEventListener('change', e => { if (e.target.name==='donorType') $('#lastWrap').hidden = e.target.value !== 'repeat'; });
     f.addEventListener('submit', async e => {
       e.preventDefault();
+      if (!f.reportValidity()) return;
       const v = Object.fromEntries(new FormData(f));
       const miss = [];
       if (!v.name?.trim()) miss.push('your name'); if (!v.birthdate) miss.push('birthdate'); if (!v.bloodType) miss.push('blood type');
@@ -1056,10 +1177,10 @@ const bind = {
         // Alert the new donor about open requests that need their blood type
         if (!eligibility(d).length) {
           const b2 = writeBatch(db);
-          state.requests.filter(r=>r.status==='open' && r.bloodType && COMPAT[r.bloodType].includes(d.bloodType)).forEach(r => {
-            if (notify(r,[d])) { n++; b2.update(doc(db,'requests',r.code), { notified: arrayUnion(d.code) }); }
+          state.requests.filter(r=>r.status==='open' && r.bloodType && (COMPAT[r.bloodType] || []).includes(d.bloodType)).forEach(r => {
+            if (notify({...r,notified:[...r.notified]},[d])) { n++; b2.update(doc(db,'requests',r.code), { notified: arrayUnion(d.code) }); }
           });
-          queueSms(b2); if (n) await b2.commit();
+          queueSms(b2); if (n && !await run(() => b2.commit())) toast('Registration saved. Matching alerts could not be saved; staff can retry from the request.');
         }
       });
       if (!ok) { btn.disabled = false; btn.textContent = 'Register as donor'; return; }
@@ -1077,7 +1198,7 @@ const bind = {
   },
   screening(){
     const f = $('#scrform'); if (!f) return;
-    $('#scrDonor').addEventListener('change', e => { state.screenDonor = e.target.value; render(); });
+    $('#scrDonor').addEventListener('change', e => { formDirty=false; state.screenDonor = e.target.value; render(); });
     const read = () => {
       const v = Object.fromEntries(new FormData(f));
       return { weightKg:v.weightKg, bpSys:v.bpSys, bpDia:v.bpDia, pulse:v.pulse, temp:v.temp, hb:v.hb, hct:v.hct, bloodType:v.bloodType,
@@ -1097,6 +1218,7 @@ const bind = {
     f.addEventListener('input', update); f.addEventListener('change', update);
     f.addEventListener('submit', async e => {
       e.preventDefault();
+      if (!f.reportValidity()) return;
       const s = read();
       const miss = [];
       if (!has(s.weightKg)) miss.push('weight'); if (!has(s.bpSys) || !has(s.bpDia)) miss.push('blood pressure'); if (!has(s.pulse)) miss.push('pulse rate'); if (!has(s.temp)) miss.push('temperature');
@@ -1109,9 +1231,12 @@ const bind = {
       if (s.bloodType) { after.bloodType = s.bloodType; after.btConfirmed = true; }
       const b = writeBatch(db);
       b.set(doc(collection(db,'screenings')), rec);
-      b.set(doc(db,'donors',d.code), donorPublic(after));
+      const {bloodType,btConfirmed,hold} = donorPublic(after);
+      b.update(doc(db,'donors',d.code), {bloodType,btConfirmed,hold});
       b.update(doc(db,'donorsPrivate',d.code), { weight:+s.weightKg });
-      run(() => b.commit(), `Screening saved for Donor ${d.code}: ${DECISIONS[s.decision]}.`);
+      const submit=f.querySelector('button[type=submit]'); if(submit.disabled) return; submit.disabled=true;
+      if(await run(() => b.commit(), `Screening saved for Donor ${d.code}: ${DECISIONS[s.decision]}.`)) { formDirty=false; render(); }
+      submit.disabled=false;
     });
   },
   rules(){
@@ -1127,21 +1252,22 @@ const bind = {
       const h = state.hospitals.find(x=>x.id===f.dataset.hospform); if (!h) return;
       const v = Object.fromEntries(new FormData(f));
       const data = { name:v.name.trim() || h.name, kind:v.kind, address:v.address.trim(), contact:v.contact.trim(), order:h.order ?? 99 };
-      if (await run(() => setDoc(doc(db,'hospitals',h.id), data), 'Facility details saved.')) { state.editHosp = null; render(); }
+      if (await run(() => setDoc(doc(db,'hospitals',h.id), data), 'Facility details saved.')) { formDirty=false; state.editHosp = null; render(); }
     }));
   }
 };
 
 document.addEventListener('click', e => {
   const t = e.target.closest('button'); if (!t) return;
-  if (t.id === 'signout') { signOut(auth); state.tab = 'home'; state.authMode = 'signin'; return toast('Signed out.'); }
-  if (t.dataset.authmode) { state.authMode = t.dataset.authmode; return render(); }
+  if (t.id === 'signout') return run(() => signOut(auth)).then(ok => { if(ok) { state.authMode='signin'; go('home'); toast('Signed out.'); } });
+  if (t.dataset.authmode) { formDirty=false; state.authMode = t.dataset.authmode; return render(); }
   if (t.dataset.tab) return go(t.dataset.tab);
   if (t.dataset.go) return go(t.dataset.go);
   if (t.dataset.open) return go('requests', t.dataset.open);
   if (t.dataset.as) { if ([...$('#viewas').options].some(o=>o.value===t.dataset.as)) state.viewAs = t.dataset.as; return go(t.dataset.as==='staffhc' ? state.tab : 'inbox'); }
   if (t.dataset.screen) { state.screenDonor = t.dataset.screen; return go('screening'); }
-  if (t.dataset.edithosp !== undefined) { state.editHosp = t.dataset.edithosp || null; return render(); }
+  if (t.dataset.edithosp !== undefined) { formDirty=false; state.editHosp = t.dataset.edithosp || null; return render(); }
+  if(t.dataset.seedhosp) return run(() => seedHospitals(), 'Suggested facilities added; verify their details directly.');
   if (t.dataset.addhosp) {
     const ref = doc(collection(db,'hospitals'));
     run(() => setDoc(ref, { name:'New facility', kind:'Hospital', address:'', contact:'', order:99 })).then(ok => { if (ok) { state.editHosp = ref.id; render(); } });
@@ -1154,12 +1280,10 @@ document.addEventListener('click', e => {
   }
   if (t.dataset.donated) {
     const r = state.requests.find(x=>x.id===state.detail); const d = state.donors.find(x=>x.id===t.dataset.donated); if (!r||!d) return;
-    const donated = r.donated.includes(d.code) ? r.donated : [...r.donated, d.code];
-    const status = donated.length >= r.units ? 'fulfilled' : r.status;
-    const b = writeBatch(db);
-    b.update(doc(db,'requests',r.code), { donated, status });
-    b.update(doc(db,'donors',d.code), { lastDonation:today(), donorType:'repeat' });
-    return run(() => b.commit(), status==='fulfilled' ? 'Donation recorded. Request fulfilled.' : `Donation recorded. ${r.units - donated.length} unit${r.units-donated.length>1?'s':''} still needed.`);
+    if (!isStaffRole() || t.disabled) return;
+    if (!confirm('Record this completed donation? This does not add received units or fulfill the request.')) return;
+    t.disabled = true;
+    return run(() => recordDonation(r.code,d.code), 'Donation recorded. Received units and request status are unchanged.').finally(() => { t.disabled=false; });
   }
   if (t.dataset.cancel) {
     const r = state.requests.find(x=>x.id===t.dataset.cancel); if (!r) return;
@@ -1169,9 +1293,10 @@ document.addEventListener('click', e => {
   if (t.dataset.notifylate) {
     const r = state.requests.find(x=>x.id===t.dataset.notifylate); if (!r) return;
     const before = r.notified.length;
-    const n = notify(r, match(r.bloodType).eligible);
+    const r2 = {...r, notified:[...r.notified]};
+    const n = notify(r2, match(r.bloodType).eligible);
     const b = writeBatch(db);
-    b.update(doc(db,'requests',r.code), { notified: arrayUnion(...r.notified.slice(before)) });
+    b.update(doc(db,'requests',r.code), { notified: arrayUnion(...r2.notified.slice(before)) });
     queueSms(b);
     return run(() => b.commit(), `${n} more donor${n>1?'s':''} alerted.`);
   }
@@ -1205,13 +1330,12 @@ document.addEventListener('submit', e => {
   say('No record found with that ID. Check the number and try again.');
 });
 $('#viewas').addEventListener('change', e => {
-  state.viewAs = e.target.value;
+  formDirty=false; state.viewAs = e.target.value;
   if (state.viewAs !== 'staff' && state.viewAs !== 'staffhc') go('inbox'); else render();
 });
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if ((TABS.some(t=>t.id===h) || h==='account') && h!==state.tab) go(h); });
 
-const h0 = location.hash.slice(1);
-if (TABS.some(t=>t.id===h0) || h0==='account') { state.tab = h0; state.detail = null; }
+
 
 /* =====================================================================
    DATABASE (Firebase)
@@ -1230,7 +1354,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let state = { donors:[], hospitals:[], requests:[], sms:[], viewAs:'staff', tab:'home', detail:null, screenDonor:null, editHosp:null };
+let state = { donors:[], hospitals:[], requests:[], sms:[], donations:[], coordination:{}, viewAs:'staff', tab:'home', detail:null, screenDonor:null, editHosp:null };
+const h0 = location.hash.slice(1);
+if (TABS.some(t=>t.id===h0) || h0==='account') state.tab = h0;
 const fb = { user:null, profile:null, ready:false, unsubs:[] };
 const raw = { donors:{}, priv:{}, scr:{}, reqs:{}, reqPriv:{} };
 let outbox = [];                       // SMS created by notify(), written by flushSms()
@@ -1241,12 +1367,12 @@ const addYears = (d, y) => d ? String(+d.slice(0,4) + y) + d.slice(4) : null;   
 function rebuild(){
   state.donors = Object.values(raw.donors).map(d => ({ ...d, ...(raw.priv[d.code]||{}), id:d.code,
     screenings: (raw.scr[d.code]||[]).slice().sort((a,b)=>String(a.at).localeCompare(String(b.at))) }));
-  state.requests = Object.values(raw.reqs).map(r => ({ notified:[], responses:{}, donated:[], ...r, ...(raw.reqPriv[r.code]||{}), id:r.code }))
+  state.requests = Object.values(raw.reqs).map(r => normalizeRequest({ ...r, ...(raw.reqPriv[r.code]||{}), id:r.code }))
     .sort((a,b)=>b.createdAt-a.createdAt);
   if (fb.ready) render();
 }
 function stopListeners(){ fb.unsubs.forEach(u => { try { u(); } catch(e) {} }); fb.unsubs = []; }
-function listen(ref, fn){ fb.unsubs.push(onSnapshot(ref, fn, err => console.warn('Listener error:', err.message))); }
+function listen(ref, fn){ fb.unsubs.push(onSnapshot(ref, fn, err => { console.warn('Listener error:', err.message); toast('Some records could not be loaded. Check access and connectivity, then reload.'); })); }
 const toMap = (snap, key='code') => Object.fromEntries(snap.docs.map(x => [x.data()[key] || x.id, { ...x.data(), _id:x.id }]));
 function groupScreenings(snap){
   raw.scr = {};
@@ -1256,10 +1382,10 @@ function groupScreenings(snap){
 function startListeners(){
   stopListeners();
   for (const k of Object.keys(raw)) raw[k] = {};
-  state.donors = []; state.requests = []; state.sms = [];
+  state.donors = []; state.requests = []; state.sms = []; state.donations = []; state.coordination = {};
   listen(collection(db,'hospitals'), snap => {
     state.hospitals = snap.docs.map(x => ({ ...x.data(), id:x.id })).sort((a,b)=>(a.order??99)-(b.order??99) || a.name.localeCompare(b.name));
-    if (isStaff() && snap.empty) seedHospitals();
+    // Seed only by an explicit staff action; loading a page must not write data.
     if (fb.ready) render();
   });
   if (!fb.user) return;
@@ -1267,7 +1393,9 @@ function startListeners(){
   listen(collection(db,'donors'), s => { raw.donors = toMap(s); rebuild(); });
   listen(collection(db,'requests'), s => { raw.reqs = toMap(s); rebuild(); });
   listen(collection(db,'sms'), s => { state.sms = s.docs.map(x=>x.data()).sort((a,b)=>b.at-a.at); if (fb.ready) render(); });
+  listen(isStaffRole() ? collection(db,'donations') : query(collection(db,'donations'), where('ownerUid','==',uid)), s => { state.donations = s.docs.map(x=>({...x.data(),id:x.id})); if(fb.ready) render(); });
   if (isStaffRole()) {
+    listen(collection(db,'coordination'), s => { state.coordination = Object.fromEntries(s.docs.map(x=>[x.id,x.data()])); if(fb.ready) render(); });
     listen(collection(db,'donorsPrivate'), s => { raw.priv = toMap(s, '_code'); rebuild(); });
     listen(collection(db,'requestsPrivate'), s => { raw.reqPriv = toMap(s, '_code'); rebuild(); });
     listen(collection(db,'screenings'), s => { groupScreenings(s); rebuild(); });
@@ -1281,10 +1409,13 @@ function startListeners(){
 }
 
 async function seedHospitals(){
-  if (seedHospitals.done) return; seedHospitals.done = true;
-  const b = writeBatch(db);
-  DEFAULT_HOSPITALS.forEach((h,i) => b.set(doc(db,'hospitals',h.id), { ...h, order:i }));
-  await b.commit().catch(e => console.warn(e.message));
+  if (!isStaffRole()) throw new Error('Staff access required.');
+  // Never overwrite an existing facility when another staff member has added it.
+  await runTransaction(db, async tx => {
+    const refs=DEFAULT_HOSPITALS.map(h=>doc(db,'hospitals',h.id));
+    const snapshots=await Promise.all(refs.map(ref=>tx.get(ref)));
+    DEFAULT_HOSPITALS.forEach((h,i)=>{if(!snapshots[i].exists()) tx.set(refs[i],{...h,order:i});});
+  });
 }
 
 // Makes a 10-digit ID and checks the database so no two records share one.
@@ -1312,13 +1443,13 @@ function donorPrivate(d){
 }
 function requestPublic(r){
   return { code:r.code, bloodType:r.bloodType, units:r.units, urgency:r.urgency, hospitalId:r.hospitalId, hospitalOther:r.hospitalOther,
-    createdAt:r.createdAt, status:r.status, notified:r.notified, responses:r.responses, donated:r.donated, ownerUid:r.ownerUid };
+    createdAt:r.createdAt, status:r.status, notified:r.notified, responses:r.responses, donated:r.donated, ownerUid:r.ownerUid, verifiedReceivedUnits:0, receiptRevision:0 };
 }
 function requestPrivate(r){
   return { _code:r.code, ownerUid:r.ownerUid, patientName:r.patientName, patientBirthdate:r.patientBirthdate,
     contactName:r.contactName, contactPhone:r.contactPhone, contactEmail:r.contactEmail, note:r.note, consent:true, consentAt:Date.now() };
 }
-function queueSms(b){ outbox.forEach(m => b.set(doc(collection(db,'sms')), m)); outbox = []; }
+function queueSms(b){ outbox.forEach(m => b.set(doc(db,'sms',m.reqCode+'_'+m.code), m)); outbox = []; }
 async function run(fn, okMsg){
   try { await fn(); if (okMsg) toast(okMsg); return true; }
   catch(e){ console.error(e); outbox = []; toast('Not saved: ' + (e.code === 'permission-denied' ? 'you are not allowed to do this.' : e.message)); return false; }
@@ -1332,7 +1463,7 @@ async function loadProfile(user){
   return s.data();
 }
 onAuthStateChanged(auth, async user => {
-  fb.user = user; fb.profile = null;
+  formDirty=false; stopListeners(); fb.ready=false; fb.user = user; fb.profile = null;
   if (user) {
     try { fb.profile = await loadProfile(user); }
     catch(e) { console.error(e); toast('Could not load your account: ' + e.message); }

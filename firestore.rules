@@ -1,95 +1,162 @@
 rules_version = '2';
-// BloodConnect ZC security rules
-// Paste this whole file into: Firebase console > Firestore Database > Rules > Publish
-// These rules make sure only healthcare staff (and the owner) can see names, phone numbers and screening results.
+// Review and deploy separately from the static app. These rules are not yet deployed.
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function signedIn() { return request.auth != null; }
     function userDoc() { return /databases/$(database)/documents/users/$(request.auth.uid); }
     function profile() { return get(userDoc()).data; }
     function isStaff() { return signedIn() && exists(userDoc()) && profile().role == 'staff'; }
     function myDonorCode() { return signedIn() && exists(userDoc()) ? profile().get('donorCode', '') : ''; }
     function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function knownType(t) { return t in ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']; }
+    function openRequest(r) { return r.status in ['open', 'typing']; }
+    function requestPath(code) { return /databases/$(database)/documents/requests/$(code); }
+    function ownDonor(code) {
+      return signedIn() && code != '' && exists(/databases/$(database)/documents/donors/$(code))
+        && get(/databases/$(database)/documents/donors/$(code)).data.uid == request.auth.uid;
+    }
+    function consented(p) { return p.consent == true && p.consentAt is number; }
 
-    // Accounts. New accounts are always 'user'. Make someone staff by editing role in the console.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
-      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'user';
-      allow update: if isStaff()
-        || (signedIn() && request.auth.uid == uid
-            && changed().hasOnly(['donorCode'])
-            && resource.data.get('donorCode', '') == ''
-            && getAfter(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.uid == request.auth.uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['role', 'email', 'createdAt', 'donorCode'])
+        && request.resource.data.role == 'user' && request.resource.data.get('donorCode', '') == '';
+      allow update: if isStaff() || (signedIn() && request.auth.uid == uid
+        && changed().hasOnly(['donorCode']) && resource.data.get('donorCode', '') == ''
+        && getAfter(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.uid == request.auth.uid);
       allow delete: if false;
     }
-
-    // Public donor info: no names, no numbers.
     match /donors/{code} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.code == code
-        && request.resource.data.btConfirmed == false
-        && myDonorCode() == '';
-      allow update: if isStaff()
-        || (signedIn() && resource.data.uid == request.auth.uid && changed().hasOnly(['available']));
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.code == code && request.resource.data.btConfirmed == false
+        && myDonorCode() == '' && knownType(request.resource.data.bloodType)
+        && request.resource.data.keys().hasOnly(['code','bloodType','btConfirmed','available','lastDonation','donorType','eligFrom','eligUntil','hold','createdAt','uid'])
+        && consented(getAfter(/databases/$(database)/documents/donorsPrivate/$(code)).data)
+        && getAfter(userDoc()).data.donorCode == code;
+      allow update: if (isStaff() && !changed().hasAny(['uid','code']))
+        || (signedIn() && resource.data.uid == request.auth.uid && changed().hasOnly(['available']) && request.resource.data.available is bool);
       allow delete: if isStaff();
     }
-
-    // Private donor info: staff and the donor only.
     match /donorsPrivate/{code} {
       allow read: if isStaff() || (signedIn() && resource.data.uid == request.auth.uid);
-      allow create: if signedIn()
-        && request.resource.data.uid == request.auth.uid
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && consented(request.resource.data)
         && getAfter(/databases/$(database)/documents/donors/$(code)).data.uid == request.auth.uid;
-      allow update, delete: if isStaff();
-    }
-
-    // Screening results: staff write; the donor can read their own.
-    match /screenings/{id} {
-      allow read: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
-      allow write: if isStaff();
-    }
-
-    // Public request info: no patient names, no numbers.
-    match /requests/{code} {
-      allow read: if signedIn();
-      allow create: if signedIn()
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.code == code
-        && request.resource.data.donated.size() == 0
-        && request.resource.data.status in ['open', 'typing'];
-      allow update: if isStaff()
-        // anyone signed in can add alerted donors (matching runs in the browser)
-        || (signedIn() && changed().hasOnly(['notified']))
-        // the requester can cancel their own request
-        || (signedIn() && resource.data.ownerUid == request.auth.uid
-            && changed().hasOnly(['status']) && request.resource.data.status == 'cancelled')
-        // a donor can accept or decline only for themselves
-        || (signedIn() && changed().hasOnly(['responses'])
-            && request.resource.data.responses.diff(resource.data.responses).affectedKeys().hasOnly([myDonorCode()]));
+      allow update: if isStaff() && !changed().hasAny(['uid','_code']);
       allow delete: if isStaff();
     }
-
-    // Private request info: staff and the requester only.
+    match /screenings/{id} {
+      allow read: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isStaff() && request.resource.data.staffUid == request.auth.uid
+        && request.resource.data.ownerUid == get(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.uid;
+      allow update, delete: if false;
+    }
+    match /requests/{code} {
+      function receiptUpdate() {
+        let r = request.resource.data;
+        return changed().hasOnly(['verifiedReceivedUnits','receiptRevision','receiptVerifiedAt','receiptVerifiedBy'])
+          && r.verifiedReceivedUnits is int && r.verifiedReceivedUnits >= 0 && r.verifiedReceivedUnits <= resource.data.units
+          && r.receiptRevision == resource.data.get('receiptRevision',0) + 1
+          && r.receiptVerifiedBy == request.auth.uid && r.receiptVerifiedAt == request.time;
+      }
+      function fulfillmentUpdate() {
+        let r = request.resource.data;
+        return changed().hasOnly(['status','fulfillmentConfirmed','fulfilledBy','fulfilledAt'])
+          && r.status == 'fulfilled' && knownType(r.bloodType)
+          && r.units is int && r.units > 0 && resource.data.get('verifiedReceivedUnits',0) >= r.units
+          && r.fulfillmentConfirmed == true && r.fulfilledBy == request.auth.uid && r.fulfilledAt == request.time;
+      }
+      function donationUpdate() {
+        let old = resource.data.get('donated',[]);
+        let next = request.resource.data.donated;
+        let donor = next[next.size()-1];
+        let record = getAfter(/databases/$(database)/documents/donations/$(code + '_' + donor)).data;
+        return changed().hasOnly(['donated']) && resource.data.status == 'open'
+          && next is list && next.size() == old.size()+1 && next.hasAll(old) && !(donor in old)
+          && resource.data.get('responses',{}).get(donor,'') == 'accepted'
+          && record.requestCode == code && record.donorCode == donor && record.staffUid == request.auth.uid
+          && record.recordedAt == request.time;
+      }
+      function notifyUpdate() {
+        let old = resource.data.get('notified',[]);
+        let next = request.resource.data.notified;
+        return changed().hasOnly(['notified']) && resource.data.status == 'open' && knownType(resource.data.bloodType)
+          && next is list && next.hasAll(old) && next.size() >= old.size();
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.code == code
+        && request.resource.data.keys().hasOnly(['code','bloodType','units','urgency','hospitalId','hospitalOther','createdAt','status','notified','responses','donated','ownerUid','verifiedReceivedUnits','receiptRevision'])
+        && request.resource.data.units is int && request.resource.data.units >= 1 && request.resource.data.units <= 6
+        && request.resource.data.urgency in ['Critical','Urgent','Scheduled']
+        && request.resource.data.donated == [] && request.resource.data.responses == {}
+        && request.resource.data.get('verifiedReceivedUnits',0) == 0 && request.resource.data.get('receiptRevision',0) == 0
+        && ((request.resource.data.status == 'open' && knownType(request.resource.data.bloodType))
+          || (request.resource.data.status == 'typing' && request.resource.data.bloodType == null && request.resource.data.notified == []))
+        && consented(getAfter(/databases/$(database)/documents/requestsPrivate/$(code)).data);
+      allow update: if openRequest(resource.data) && (
+        (isStaff() && (receiptUpdate() || fulfillmentUpdate() || donationUpdate()
+          || (resource.data.status == 'typing' && changed().hasOnly(['bloodType','status','notified'])
+            && request.resource.data.status == 'open' && knownType(request.resource.data.bloodType))))
+        || (signedIn() && notifyUpdate())
+        || (signedIn() && (isStaff() || resource.data.ownerUid == request.auth.uid)
+          && changed().hasOnly(['status']) && request.resource.data.status == 'cancelled')
+        || (signedIn() && ownDonor(myDonorCode()) && resource.data.status == 'open'
+          && myDonorCode() in resource.data.get('notified',[])
+          && !(myDonorCode() in resource.data.get('donated',[]))
+          && changed().hasOnly(['responses'])
+          && request.resource.data.responses.diff(resource.data.get('responses',{})).affectedKeys().hasOnly([myDonorCode()])
+          && request.resource.data.responses[myDonorCode()] in ['accepted','declined'])
+      );
+      allow delete: if false;
+    }
     match /requestsPrivate/{code} {
       allow read: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if isStaff();
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid && consented(request.resource.data)
+        && getAfter(requestPath(code)).data.ownerUid == request.auth.uid;
+      allow update: if isStaff() && !changed().hasAny(['ownerUid','_code']);
+      allow delete: if false;
     }
-
-    // Hospital directory: everyone can read, staff edit.
+    match /coordination/{code} {
+      function validReport() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['requestCode','facility','result','contactedAt','staffUid','revision'])
+          && d.requestCode == code && d.facility is string && d.facility.size() > 0 && d.facility.size() <= 160
+          && d.result in ['unverified','awaiting reply','no stock','possible availability','referral']
+          && d.contactedAt == request.time && d.staffUid == request.auth.uid
+          && openRequest(get(requestPath(code)).data);
+      }
+      allow read: if isStaff();
+      allow create: if isStaff() && validReport() && request.resource.data.revision == 1;
+      allow update: if isStaff() && validReport() && request.resource.data.revision == resource.data.revision+1;
+      allow delete: if false;
+    }
+    match /donations/{id} {
+      allow read: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isStaff()
+        && request.resource.data.keys().hasOnly(['requestCode','donorCode','ownerUid','donatedOn','facility','recordedAt','staffUid'])
+        && id == request.resource.data.requestCode + '_' + request.resource.data.donorCode
+        && request.resource.data.ownerUid == get(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.uid
+        && request.resource.data.staffUid == request.auth.uid && request.resource.data.recordedAt == request.time
+        && get(requestPath(request.resource.data.requestCode)).data.status == 'open'
+        && get(requestPath(request.resource.data.requestCode)).data.get('responses',{}).get(request.resource.data.donorCode,'') == 'accepted'
+        && !(request.resource.data.donorCode in get(requestPath(request.resource.data.requestCode)).data.get('donated',[]))
+        && request.resource.data.donorCode in getAfter(requestPath(request.resource.data.requestCode)).data.donated;
+      allow update, delete: if false;
+    }
     match /hospitals/{id} {
       allow read: if true;
       allow write: if isStaff();
     }
-
-    // SMS log: shows Donor IDs only.
+    // Simulation only. Stable request/donor IDs make retries idempotent.
     match /sms/{id} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.keys().hasOnly(['at', 'code', 'reqCode', 'text']);
-      allow update, delete: if isStaff();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['at','code','reqCode','text'])
+        && id == request.resource.data.reqCode + '_' + request.resource.data.code
+        && request.resource.data.code in getAfter(requestPath(request.resource.data.reqCode)).data.notified;
+      allow update: if signedIn() && request.resource.data == resource.data;
+      allow delete: if isStaff();
     }
   }
 }
