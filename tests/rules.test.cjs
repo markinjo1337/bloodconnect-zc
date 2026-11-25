@@ -12,11 +12,11 @@ before(async()=>{env=await initializeTestEnvironment({projectId:'demo-bloodconne
 after(async()=>{await env?.cleanup();});
 beforeEach(async()=>{await env.clearFirestore();await env.withSecurityRulesDisabled(async c=>{const f=c.firestore();await Promise.all([
 setDoc(doc(f,'users','staff'),{role:'staff'}),setDoc(doc(f,'users','requester'),{role:'user'}),setDoc(doc(f,'users','outsider'),{role:'user'}),
-...[1,2,3].flatMap(n=>[setDoc(doc(f,'users','donor'+n),{role:'user',donorCode:'000000000'+n}),setDoc(doc(f,'donors','000000000'+n),{code:'000000000'+n,uid:'donor'+n,bloodType:'A+',btConfirmed:true})]),
+...[1,2,3].flatMap(n=>[setDoc(doc(f,'users','donor'+n),{role:'user',donorCode:'000000000'+n}),setDoc(doc(f,'donors','000000000'+n),{code:'000000000'+n,uid:'donor'+n,bloodType:'A+',btConfirmed:true,available:true,hold:false,eligFrom:'2018-01-01',eligUntil:'2066-01-01',lastDonation:null,donorType:'first'})]),
 setDoc(ref(f),request()),setDoc(ref(f,'requestsPrivate'),{ownerUid:'requester',patientName:'Fictitious Patient'}),setDoc(ref(f,'donorsPrivate',dcode),{uid:'donor1',name:'Fictitious Donor'})]);});});
 const receipt=(total,revision=1)=>({verifiedReceivedUnits:total,receiptRevision:revision,receiptVerifiedBy:'staff',receiptVerifiedAt:serverTimestamp()});
 const fulfilled=()=>({status:'fulfilled',fulfillmentConfirmed:true,fulfilledBy:'staff',fulfilledAt:serverTimestamp()});
-async function donation(client,actor='staff'){const b=writeBatch(client);b.set(ref(client,'donations',code+'_'+dcode),{requestCode:code,donorCode:dcode,ownerUid:'donor1',staffUid:actor,recordedAt:serverTimestamp(),donatedOn:'2026-11-25',facility:'Fictitious Facility'});b.update(ref(client),{donated:[dcode]});return b.commit();}
+async function donation(client,actor='staff',includeDonor=true){const b=writeBatch(client);b.set(ref(client,'donations',code+'_'+dcode),{requestCode:code,donorCode:dcode,ownerUid:'donor1',staffUid:actor,recordedAt:serverTimestamp(),donatedOn:new Date().toISOString().slice(0,10),facility:'Fictitious Facility'});b.update(ref(client),{donated:[dcode]});if(includeDonor)b.update(ref(client,'donors',dcode),{lastDonation:new Date().toISOString().slice(0,10),donorType:'repeat'});return b.commit();}
 test('three-unit scenario enforced by real Firestore rules',async()=>{
   const staff=db('staff');
   for(let n=1;n<=3;n++)await assertSucceeds(updateDoc(ref(db('donor'+n)),{['responses.000000000'+n]:'accepted'}));
@@ -77,11 +77,43 @@ test('cannot impersonate another donor or inject arbitrary response states',asyn
   await assertFails(setDoc(doc(db('attacker'),'users','attacker'),{role:'user',donorCode:dcode}));
 });
 test('request creation must have consent and no preloaded received units',async()=>{
-  const c=db('requester');const r={...request(),code:'1000000099',donated:[],responses:{}};
+  const c=db('requester');const r={...request(),code:'1000000099',donated:[],responses:{},notified:[]};
   const b=writeBatch(c);b.set(ref(c,'requests',r.code),r);b.set(ref(c,'requestsPrivate',r.code),{ownerUid:'requester',consent:true,consentAt:Date.now()});await assertSucceeds(b.commit());
   await assertFails(setDoc(ref(c,'requests','1000000088'),{...r,code:'1000000088',verifiedReceivedUnits:3}));
   await assertFails(setDoc(ref(c,'requests','1000000077'),{...r,code:'1000000077'}));
 });
 test('staff cannot combine receipt update and fulfillment to bypass separate confirmation',async()=>{
   await assertFails(updateDoc(ref(db('staff')),{...receipt(3),...fulfilled()}));
+});
+
+test('donation requires the atomic donor date update',async()=>{
+ const c=db('staff');await updateDoc(ref(db('donor1')),{'responses.0000000001':'accepted'});
+ await assertFails(donation(c,'staff',false));
+ assert.equal((await getDoc(ref(c,'donors',dcode))).data().lastDonation,null);
+ assert.equal((await getDoc(ref(c,'donations',code+'_'+dcode))).exists(),false);
+ await assertSucceeds(donation(c));
+ assert.equal((await getDoc(ref(c,'donors',dcode))).data().lastDonation,new Date().toISOString().slice(0,10));
+});
+test('alerts cannot be injected or used to bypass current matching eligibility',async()=>{
+ const set=async(data)=>env.withSecurityRulesDisabled(c=>updateDoc(ref(c.firestore(),'donors',dcode),data));
+ await env.withSecurityRulesDisabled(c=>updateDoc(ref(c.firestore()),{notified:[]}));
+ await assertFails(updateDoc(ref(db('outsider')),{notified:[dcode]}));
+ await assertFails(updateDoc(ref(db('donor2')),{notified:[dcode]}));
+ await assertFails(updateDoc(ref(db('requester')),{notified:[dcode,'0000000002']}));
+ for(const data of [{bloodType:'B+'},{available:false},{hold:true},{eligFrom:'2099-01-01'},{eligUntil:'2020-01-01'},{lastDonation:new Date().toISOString().slice(0,10)}]) {
+   await set({bloodType:'A+',available:true,hold:false,eligFrom:'2018-01-01',eligUntil:'2066-01-01',lastDonation:null,...data});
+   await assertFails(updateDoc(ref(db('donor1')),{notified:[dcode]}));
+   await assertFails(updateDoc(ref(db('requester')),{notified:[dcode]}));
+   await assertFails(updateDoc(ref(db('staff')),{notified:[dcode]}));
+   // Old or malicious pre-existing alerts must not authorize acceptance.
+   await env.withSecurityRulesDisabled(c=>updateDoc(ref(c.firestore()),{notified:[dcode]}));
+   await assertFails(updateDoc(ref(db('donor1')),{'responses.0000000001':'accepted'}));
+   await assertSucceeds(updateDoc(ref(db('donor1')),{'responses.0000000001':'declined'}));
+   await env.withSecurityRulesDisabled(c=>updateDoc(ref(c.firestore()),{notified:[],responses:{}}));
+ }
+ await set({bloodType:'O-',available:true,hold:false,eligFrom:'2018-01-01',eligUntil:'2066-01-01',lastDonation:null});
+ await assertSucceeds(updateDoc(ref(db('donor1')),{notified:[dcode]}));
+ await assertSucceeds(updateDoc(ref(db('donor1')),{'responses.0000000001':'accepted'}));
+ await assertSucceeds(updateDoc(ref(db('requester')),{notified:[dcode,'0000000002']}));
+ await assertSucceeds(updateDoc(ref(db('staff')),{notified:[dcode,'0000000002','0000000003']}));
 });

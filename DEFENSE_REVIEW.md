@@ -2,6 +2,20 @@
 
 Review branch: `repair/defense-coordination`. No production deployment or live-data modification is authorized by this branch.
 
+## Follow-up review repairs (November 26, 2026, UTC+8)
+
+The user supplied an independent read-only review of PR head `4053d427`: public desktop/mobile pages and hash navigation passed without captured console errors. That review did not authenticate, test deployed writes, or inspect deployed rules. Its three source findings were reproduced in code and addressed:
+
+- Notifications now append exactly one eligible compatible donor per rule-validated transaction. Only staff, the request owner, or the eligible donor adding their own ID may append. Initial requests and blood-type confirmation start with an empty notification list, preventing preloaded recipients from bypassing validation. Acceptance rechecks current compatibility, availability, age window, hold, and donation interval, including for old alerts; decline remains possible. Missing/invalid eligibility fields fail closed. Partial alert failure preserves the saved request and reports the alert failure; deterministic IDs and membership checks make retries safe.
+- Coordination drafts are preserved independently across saves and snapshots, including checkbox state, input focus, errors, and the original revision. Retaining the original revision ensures an unsaved stale total cannot silently overwrite another staff member's save. Saved status summaries still refresh.
+- A donation-history create requires the donor's `lastDonation` and `donorType` to match the recording in the same atomic result. The date must be the current UTC date, matching the existing recording UI. An incomplete batch fails without creating history or changing the request.
+
+**Validation:** a clean `firebase emulators:exec` run passed all **25 tests** (5 unit, 10 rules, 10 browser), including all original workflows plus adversarial alert/acceptance writes, incomplete donation batches, cross-form draft preservation, stale revisions, and staff blood typing with recipient-by-recipient alerts. An earlier run lost the long-running Auth emulator and failed; the final clean run completed successfully without retries. `git diff --check` passed.
+
+No medical thresholds changed. The browser's 90-day interval now parses date-only last-donation values at UTC midnight, matching its existing UTC `today()` and the rules' server clock. Previously it used the browser's local midnight, creating a timezone-dependent boundary (up to the timezone offset). Eligibility remains preliminary; this is not clinical clearance.
+
+The Netlify PR preview exists at https://deploy-preview-1--bloodconnect-zc.netlify.app and still references production Firebase. Do not use it for fictitious write tests. These rules remain **undeployed**; a preview build alone does not activate them. There was no production release or live-data write.
+
 ## Source inspection
 
 - Fetched `origin/main`; it matches starting commit `c9d9fef4014e7d90cbd37bff772ffbe136da30a5` (November 15, 2026).
@@ -33,7 +47,7 @@ Review branch: `repair/defense-coordination`. No production deployment or live-d
 
 ## Verification status
 
-**Final local `npm test`: all 21 tests passed on November 25, 2026** (5 unit, 8 Firestore rules, 8 browser). This includes the profile-error UI and focused-form refresh repair. Earlier failed runs are described below; no retry setting masks test failures.
+**Prior baseline local `npm test`: all 21 tests passed on November 25, 2026** (5 unit, 8 Firestore rules, 8 browser). This includes the profile-error UI and focused-form refresh repair. Earlier failed runs are described below; no retry setting masks test failures.
 
 **21 tests passed in GitHub CI** against disposable Firebase Auth/Firestore emulators and Chromium: [successful run](https://github.com/markinjo1337/bloodconnect-zc/actions/runs/45615615332), tested revision `f6795bd4adf4b2022c526e8f8754daa73549362d`. Test evidence (screenshots and browser results) is available in that run's artifact. No production account or record was used.
 
@@ -57,7 +71,7 @@ Review branch: `repair/defense-coordination`. No production deployment or live-d
 
 The initial local emulator setup was blocked by hostname policy; the user updated the environment and local Auth/Firestore emulators now run. Local browser runs exposed a transient profile-read failure and a focused sign-in form refresh race; the app now provides an explicit retry state. The authenticated workflow rerun passed all four tests, and the updated layout checks passed all four viewports. CI also passed the strengthened unauthorized-write fixtures at revision `4873c7e9941c130fe097459f0a7902c71bc6ed76` ([run](https://github.com/markinjo1337/bloodconnect-zc/actions/runs/45615921080)).
 
-Still unverified: deployed Firestore rules, real Firebase accounts, live records, physical mobile devices, and separately mentioned attached-document screenshots. The authenticated demo is running on port 3000 with local emulators and is open in shared Cloud Chrome. An externally forwarded HTTP preview URL is not configured.
+Still unverified: deployed Firestore rules, real Firebase accounts, live records, physical mobile devices, and separately mentioned attached-document screenshots. The authenticated demo can be started on port 3000 with the local emulators using the commands below. The user’s current Codex client does not expose the shared Cloud Desktop viewer. An externally forwarded HTTP preview URL is not configured.
 
 ## Preview and repeatable tests
 
@@ -75,7 +89,7 @@ npm run seed:demo
 npm run preview
 ```
 
-Preview port: **3000**. In the Codex right panel, open **+ → Desktop**, then use shared Chrome at `http://localhost:3000`. This address refers to the cloud computer, not the user’s own machine. An HTTP Preview portal can optionally provide a forwarded URL.
+Preview port: **3000**. Use `http://localhost:3000` only in a browser on the computer running the preview server, or through configured port forwarding. This address refers to the cloud computer, not the user’s own machine. An HTTP Preview portal can optionally provide a forwarded URL.
 
 Fictitious accounts: `staff@example.test`, `requester@example.test`, `donor1@example.test` through `donor3@example.test`, and `outsider@example.test`. Password: `Defense27!`.
 

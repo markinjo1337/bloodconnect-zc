@@ -370,7 +370,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const today = () => new Date().toISOString().slice(0,10);
 const daysAgo = n => new Date(Date.now() - n*86400000).toISOString().slice(0,10);
 const yearsAgo = (y, extraDays=0) => { const d = new Date(); d.setFullYear(d.getFullYear()-y); d.setDate(d.getDate()-extraDays); return d.toISOString().slice(0,10); };
-const daysSince = d => d ? Math.floor((Date.now() - new Date(d+'T00:00:00').getTime())/86400000) : Infinity;
+const daysSince = d => d ? Math.floor((Date.now() - new Date(d+'T00:00:00Z').getTime())/86400000) : Infinity;
 function ageOf(b){
   if (!b) return null;
   const d = new Date(b+'T00:00:00'), n = new Date();
@@ -472,6 +472,25 @@ function notify(req, donors){
   return n;
 }
 
+async function sendMatchedAlerts(r, donors){
+  let sent=0;
+  for(const donor of donors) {
+    try {
+      const added=await runTransaction(db, async tx=>{
+        const ref=doc(db,'requests',r.code), snap=await tx.get(ref);
+        const current=normalizeRequest(snap.data());
+        if(current.notified.includes(donor.code)) return false;
+        if(current.status!=='open') throw new Error('Request is no longer open.');
+        tx.update(ref,{notified:[...current.notified,donor.code]});
+        tx.set(doc(db,'sms',r.code+'_'+donor.code),{at:Date.now(),code:donor.code,reqCode:r.code,text:SMS_TEXT(current,hospitalName(current))});
+        return true;
+      });
+      if(added) sent++;
+    } catch(error) { throw new Error(`${sent} alerts saved; remaining alerts were not saved: ${error.message}`); }
+  }
+  return sent;
+}
+
 /* ================= Shell ================= */
 const isStaffRole = () => fb.profile?.role === 'staff';
 const isStaff = () => isStaffRole() && state.viewAs === 'staffhc';
@@ -502,14 +521,15 @@ function renderNav(){
   $('#nav').innerHTML = TABS.filter(t => !t.staffOnly || isStaffRole()).map(t => `<button data-tab="${t.id}" ${state.tab===t.id?'aria-current="page"':''}>${t.label}${t.id==='inbox'&&p?`<span class="count">${p}</span>`:''}${t.id==='requests'&&typing&&isStaff()?`<span class="count">${typing}</span>`:''}</button>`).join('');
 }
 function go(tab, detail=null){
+  document.querySelectorAll('form[data-dirty]').forEach(f=>delete f.dataset.dirty);
   formDirty = false; state.tab = tab; state.detail = detail;
   try { history.replaceState(null,'','#'+tab); } catch(e) {}
   render(); $('#nav [aria-current=page]')?.scrollIntoView({block:'nearest',inline:'nearest'}); window.scrollTo(0,0);
 }
 let formDirty = false;
 // Preserve a focused form before the first input event, including autofill.
-document.addEventListener('focusin', e => { if(e.target.closest('main form')) formDirty = true; });
-document.addEventListener('input', e => { if(e.target.closest('main form')) formDirty = true; });
+document.addEventListener('focusin', e => { const f=e.target.closest('main form'); if(f) { formDirty = true; f.dataset.dirty='true'; } });
+document.addEventListener('input', e => { const f=e.target.closest('main form'); if(f) { formDirty = true; f.dataset.dirty='true'; } });
 function render(){
   if (!fb.ready) return;
   renderViewAs(); renderNav();
@@ -517,7 +537,9 @@ function render(){
     $('#main').innerHTML = `<div class="panel locked"><h2>Account temporarily unavailable</h2><p>Your account profile could not be loaded. Registration and staff access cannot be determined yet.</p><button class="btn" style="margin-top:14px" id="retryAccount">Retry account loading</button></div>`;
     return;
   }
-  if (formDirty && document.querySelector('#main form')) return;
+  if (document.querySelector('form[data-saving]')) return;
+  const drafts = captureCoordinationDrafts();
+  if (formDirty && document.querySelector('#main form') && !document.querySelector('form[data-contact]')) return;
   if (state.tab === 'account' || (!signedIn() && !PUBLIC_TABS.includes(state.tab))) {
     $('#main').innerHTML = viewAccount();
     return bindAccount();
@@ -526,6 +548,7 @@ function render(){
   $('#main').innerHTML = v();
   bind[state.tab]?.();
   bindCoordination();
+  restoreCoordinationDrafts(drafts);
 }
 
 /* ================= Sign in / Create account ================= */
@@ -711,7 +734,7 @@ function viewDetail(){
       : `<p class="muted" style="margin-top:12px">Authorized healthcare staff must confirm the blood type.</p>`}`;
   } else {
     const m = match(r.bloodType);
-    const late = r.status==='open' ? m.eligible.filter(d=>!r.notified.includes(d.id)) : [];
+    const late = r.status==='open' && (isStaffRole() || r.ownerUid===fb.user?.uid) ? m.eligible.filter(d=>!r.notified.includes(d.id)) : [];
     body = `<div class="section"><h3>Notified donors</h3>
       <p class="sub">Donor types that can give to ${esc(r.bloodType)}: ${(COMPAT[r.bloodType] || []).join(', ') || 'Awaiting confirmed blood type'}. Accepted donors appear first.</p>
       ${notified.length ? `<div class="rows">${notified.map(d=>{
@@ -802,11 +825,30 @@ async function staffRequestTransaction(code, action){
     return action(tx, ref, normalizeRequest(snap.data()));
   });
 }
+function captureCoordinationDrafts(){
+  return [...document.querySelectorAll('form[data-contact], form[data-received], form[data-fulfill]')]
+    .filter(f=>f.dataset.dirty).map(f=>({key:f.dataset.contact?'contact':f.dataset.received?'received':'fulfill',
+      code:f.dataset.contact || f.dataset.received || f.dataset.fulfill, revision:f.dataset.revision,
+      focus:f.contains(document.activeElement)?document.activeElement.name:null,
+      selection:f.contains(document.activeElement)?[document.activeElement.selectionStart,document.activeElement.selectionEnd]:null,
+      fields:[...f.elements].filter(el=>el.name).map(el=>({name:el.name,value:el.value,checked:el.checked})),
+      error:f.querySelector('[data-save-error]')?.textContent || ''}));
+}
+function restoreCoordinationDrafts(drafts){
+  for(const draft of drafts){
+    const f=document.querySelector(`form[data-${draft.key}="${draft.code}"]`); if(!f) continue;
+    if(draft.revision!==undefined) f.dataset.revision=draft.revision;
+    for(const field of draft.fields){const el=f.elements.namedItem(field.name);if(el){el.value=field.value;if(el.type==='checkbox')el.checked=field.checked;}}
+    f.querySelector('[data-save-error]').textContent=draft.error;
+    f.dataset.dirty='true';formDirty=true;
+    if(draft.focus){const el=f.elements.namedItem(draft.focus);el?.focus({preventScroll:true});if(draft.selection?.[0]!=null)el.setSelectionRange(...draft.selection);}
+  }
+}
 function bindCoordination(){
   document.querySelectorAll('form[data-contact], form[data-received], form[data-fulfill]').forEach(f => {
     f.addEventListener('submit', async e => {
       e.preventDefault();
-      if (f.dataset.saving) return;
+      if (document.querySelector('form[data-saving]')) return;
       const v = Object.fromEntries(new FormData(f)), button=f.querySelector('button[type=submit]'), error=f.querySelector('[data-save-error]');
       f.dataset.saving='true'; button.disabled=true; error.textContent='';
       const code=f.dataset.contact || f.dataset.received || f.dataset.fulfill;
@@ -829,7 +871,8 @@ function bindCoordination(){
             tx.update(ref,{status:'fulfilled',fulfillmentConfirmed:true,fulfilledBy:fb.user.uid,fulfilledAt:serverTimestamp()});
           }
         });
-        formDirty=false; render(); toast(f.dataset.contact?'Facility contact result saved.':f.dataset.received?'Verified cumulative total saved. Request remains open until explicit fulfillment.':'Request fulfilled with explicit staff confirmation.');
+        delete f.dataset.dirty; delete f.dataset.saving; formDirty=false; render();
+        toast(f.dataset.contact?'Facility contact result saved.':f.dataset.received?'Verified cumulative total saved. Request remains open until explicit fulfillment.':'Request fulfilled with explicit staff confirmation.');
       } catch(err) { error.textContent='Not saved: '+err.message; }
       finally { delete f.dataset.saving; button.disabled=false; }
     });
@@ -1142,7 +1185,7 @@ const bind = {
         r = { id:code, code, patientName:v.patientName.trim(), patientBirthdate:v.patientBirthdate, bloodType: unknown?null:v.bloodType, units:+v.units, urgency:v.urgency,
           hospitalId: v.hospitalId==='other'?'':v.hospitalId, hospitalOther:(v.hospitalOther||'').trim(), contactName:v.contactName.trim(), contactPhone:v.contactPhone.trim(),
           contactEmail:(v.contactEmail||'').trim(), note:(v.note||'').trim(), createdAt:Date.now(), status: unknown?'typing':'open', notified:[], responses:{}, donated:[], ownerUid:fb.user.uid };
-        n = unknown ? 0 : notify(r, match(r.bloodType).eligible);
+        // Initial request has no recipients; each alert is separately rule-validated.
         const b = writeBatch(db);
         b.set(doc(db,'requests',code), requestPublic(r));
         b.set(doc(db,'requestsPrivate',code), requestPrivate(r));
@@ -1152,6 +1195,7 @@ const bind = {
       if (!ok) { btn.disabled = false; btn.textContent = 'Post request'; return; }
       raw.reqs[r.code] = requestPublic(r); raw.reqPriv[r.code] = requestPrivate(r); rebuild();
       go('requests', r.code);
+      if (!unknown && !await run(async()=>{ n=await sendMatchedAlerts(r,match(r.bloodType).eligible); })) { toast('Request saved. Some donor alerts failed; staff can retry alerting.'); return; }
       toast(`Request ${r.code} posted. Save this Request ID. ` + (unknown ? 'Donors will be alerted once the blood type is confirmed.' : n ? `${n} compatible donor${n>1?'s':''} alerted.` : 'No eligible compatible donors yet.'));
     });
   },
@@ -1300,23 +1344,17 @@ document.addEventListener('click', e => {
   }
   if (t.dataset.notifylate) {
     const r = state.requests.find(x=>x.id===t.dataset.notifylate); if (!r) return;
-    const before = r.notified.length;
-    const r2 = {...r, notified:[...r.notified]};
-    const n = notify(r2, match(r.bloodType).eligible);
-    const b = writeBatch(db);
-    b.update(doc(db,'requests',r.code), { notified: arrayUnion(...r2.notified.slice(before)) });
-    queueSms(b);
-    return run(() => b.commit(), `${n} more donor${n>1?'s':''} alerted.`);
+    return run(async()=>{const n=await sendMatchedAlerts(r,match(r.bloodType).eligible); toast(`${n} more donors alerted.`);});
   }
   if (t.dataset.settype) {
     const r = state.requests.find(x=>x.id===t.dataset.settype); const sel = document.querySelector('input[name="setbt"]:checked');
     if (!r) return; if (!sel) return toast('Choose the confirmed blood type first.');
-    const r2 = { ...r, notified:[...r.notified], bloodType:sel.value, status:'open' };
-    const n = notify(r2, match(r2.bloodType).eligible);
-    const b = writeBatch(db);
-    b.update(doc(db,'requests',r.code), { bloodType:r2.bloodType, status:'open', notified:r2.notified });
-    queueSms(b);
-    return run(() => b.commit(), n ? `Blood type confirmed. ${n} compatible donor${n>1?'s':''} alerted.` : 'Blood type confirmed. No eligible compatible donors yet.');
+    const r2 = {...r,bloodType:sel.value,status:'open',notified:[]};
+    return run(async()=>{
+      await updateDoc(doc(db,'requests',r.code),{bloodType:r2.bloodType,status:'open',notified:[]});
+      toast('Blood type confirmed.');
+      await run(async()=>{const n=await sendMatchedAlerts(r2,match(r2.bloodType).eligible); toast(`${n} compatible donors alerted.`);});
+    });
   }
 });
 document.addEventListener('submit', e => {

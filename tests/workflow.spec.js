@@ -52,3 +52,26 @@ test('account creation and consenting donor registration preserve owner linkage'
  await page.locator('#nav [data-tab=register]').click();const f=page.locator('#regform');await f.locator('[name=name]').fill('Fictitious New Donor');await f.locator('[name=birthdate]').fill('2000-01-01');await f.locator('[name=bloodType][value="A+"]').check();await f.locator('[name=phone]').fill('09000000000');await f.locator('[name=weight]').fill('60');await f.locator('[name=barangay]').selectOption('Baliwasan');
  await f.getByRole('button',{name:'Register as donor'}).click();await expect(page.locator('#regerr')).toContainText('Tick all three');for(const name of ['agreeTerms','agreePrivacy','agreeWilling'])await f.locator(`[name=${name}]`).check();await f.getByRole('button',{name:'Register as donor'}).click();await expect(page.locator('.profile')).toContainText('Donor 000');await expect(page.locator('main')).toContainText('My donation history');await expect(page.locator('main')).toContainText('My screening records');
 });
+
+test('coordination saves preserve other drafts and their original revision',async({page})=>{
+ await login(page,'staff');await openRequest(page);
+ const received=page.locator('[data-received]');
+ await received.locator('[name=total]').fill('2');await received.locator('[name=verified]').check();
+ await page.locator('[data-fulfill] [name=confirmed]').check();
+ const contact=page.locator('[data-contact]');await contact.locator('[name=facility]').fill('Fictitious Draft Facility');await contact.locator('[name=result]').selectOption('awaiting reply');await contact.getByRole('button').click();
+ await expect(page.locator('main')).toContainText('Latest contact: awaiting reply');
+ await expect(received.locator('[name=total]')).toHaveValue('2');await expect(received.locator('[name=verified]')).toBeChecked();await expect(page.locator('[data-fulfill] [name=confirmed]')).toBeChecked();
+ await contact.locator('[name=facility]').fill('Fictitious Unsaved Facility');
+ await received.getByRole('button').click();await expect(page.locator('.detail-top')).toContainText('2 of 3 units verified received');
+ await expect(contact.locator('[name=facility]')).toHaveValue('Fictitious Unsaved Facility');
+ await expect(page.locator('[data-fulfill] [name=confirmed]')).toBeChecked();
+ await contact.getByRole('button').click();await expect(page.locator('[data-contact] [data-save-error]')).toHaveText('');
+});
+
+test('staff blood typing sends individually validated donor alerts',async({page})=>{
+ await login(page,'staff');await openRequest(page,'1000000003');
+ await page.locator('[name=setbt][value="A+"]').check();await page.locator('[data-settype]').click();
+ await expect(page.locator('.rows .row')).toHaveCount(3);
+ await expect(page.locator('main')).not.toContainText('Not saved:');
+ await expect(page.locator('.detail-top')).toContainText('0 donor acceptances');
+});

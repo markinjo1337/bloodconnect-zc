@@ -17,6 +17,24 @@ service cloud.firestore {
     }
     function consented(p) { return p.consent == true && p.consentAt is number; }
 
+    function dateValue(value) {
+      let parts = value.split('-');
+      return timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
+    }
+    // Same preliminary thresholds as the UI. Not a clinical clearance.
+    function eligibleMatch(code, recipient) {
+      let d = get(/databases/$(database)/documents/donors/$(code)).data;
+      let compatible = {
+        'O-':['O-'], 'O+':['O-','O+'], 'A-':['O-','A-'], 'A+':['O-','O+','A-','A+'],
+        'B-':['O-','B-'], 'B+':['O-','O+','B-','B+'],
+        'AB-':['O-','A-','B-','AB-'], 'AB+':['O-','O+','A-','A+','B-','B+','AB-','AB+']
+      };
+      return knownType(recipient) && d.bloodType in compatible[recipient]
+        && d.available == true && d.hold == false
+        && request.time >= dateValue(d.eligFrom) && request.time < dateValue(d.eligUntil)
+        && (d.get('lastDonation',null) == null || request.time >= dateValue(d.lastDonation) + duration.value(90,'d'));
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
       allow create: if signedIn() && request.auth.uid == uid
@@ -84,7 +102,10 @@ service cloud.firestore {
         let old = resource.data.get('notified',[]);
         let next = request.resource.data.notified;
         return changed().hasOnly(['notified']) && resource.data.status == 'open' && knownType(resource.data.bloodType)
-          && next is list && next.hasAll(old) && next.size() >= old.size();
+          && next is list && next.size() == old.size()+1 && next == old.concat([next[next.size()-1]])
+          && !(next[next.size()-1] in old)
+          && (isStaff() || resource.data.ownerUid == request.auth.uid || (ownDonor(myDonorCode()) && next[next.size()-1] == myDonorCode()))
+          && eligibleMatch(next[next.size()-1],resource.data.bloodType);
       }
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid
@@ -92,7 +113,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['code','bloodType','units','urgency','hospitalId','hospitalOther','createdAt','status','notified','responses','donated','ownerUid','verifiedReceivedUnits','receiptRevision'])
         && request.resource.data.units is int && request.resource.data.units >= 1 && request.resource.data.units <= 6
         && request.resource.data.urgency in ['Critical','Urgent','Scheduled']
-        && request.resource.data.donated == [] && request.resource.data.responses == {}
+        && request.resource.data.donated == [] && request.resource.data.responses == {} && request.resource.data.notified == []
         && request.resource.data.get('verifiedReceivedUnits',0) == 0 && request.resource.data.get('receiptRevision',0) == 0
         && ((request.resource.data.status == 'open' && knownType(request.resource.data.bloodType))
           || (request.resource.data.status == 'typing' && request.resource.data.bloodType == null && request.resource.data.notified == []))
@@ -100,7 +121,7 @@ service cloud.firestore {
       allow update: if openRequest(resource.data) && (
         (isStaff() && (receiptUpdate() || fulfillmentUpdate() || (changed().hasOnly(['donated']) && donationUpdate())
           || (resource.data.status == 'typing' && changed().hasOnly(['bloodType','status','notified'])
-            && request.resource.data.status == 'open' && knownType(request.resource.data.bloodType))))
+            && request.resource.data.status == 'open' && knownType(request.resource.data.bloodType) && request.resource.data.notified == [])))
         || (signedIn() && notifyUpdate())
         || (signedIn() && (isStaff() || resource.data.ownerUid == request.auth.uid)
           && changed().hasOnly(['status']) && request.resource.data.status == 'cancelled')
@@ -109,7 +130,8 @@ service cloud.firestore {
           && !(myDonorCode() in resource.data.get('donated',[]))
           && changed().hasOnly(['responses'])
           && request.resource.data.responses.diff(resource.data.get('responses',{})).affectedKeys().hasOnly([myDonorCode()])
-          && request.resource.data.responses[myDonorCode()] in ['accepted','declined'])
+          && request.resource.data.responses[myDonorCode()] in ['accepted','declined']
+          && (request.resource.data.responses[myDonorCode()] == 'declined' || eligibleMatch(myDonorCode(),resource.data.bloodType)))
       );
       allow delete: if false;
     }
@@ -141,6 +163,10 @@ service cloud.firestore {
         && id == request.resource.data.requestCode + '_' + request.resource.data.donorCode
         && request.resource.data.ownerUid == get(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.uid
         && request.resource.data.staffUid == request.auth.uid && request.resource.data.recordedAt == request.time
+        && request.resource.data.donatedOn is string
+        && dateValue(request.resource.data.donatedOn) == request.time.date()
+        && getAfter(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.lastDonation == request.resource.data.donatedOn
+        && getAfter(/databases/$(database)/documents/donors/$(request.resource.data.donorCode)).data.donorType == 'repeat'
         && get(requestPath(request.resource.data.requestCode)).data.status == 'open'
         && get(requestPath(request.resource.data.requestCode)).data.get('responses',{}).get(request.resource.data.donorCode,'') == 'accepted'
         && !(request.resource.data.donorCode in get(requestPath(request.resource.data.requestCode)).data.get('donated',[]))
