@@ -24,6 +24,12 @@ No medical thresholds changed. The browser's 90-day interval now parses date-onl
 
 The Netlify PR preview exists at https://deploy-preview-1--bloodconnect-zc.netlify.app and still references production Firebase. Do not use it for fictitious write tests. These rules remain **undeployed**; a preview build alone does not activate them. There was no production release or live-data write.
 
+## Production-rule copy supplied by the owner
+
+The owner supplied their console rules on November 26, 2026 (UTC+8). [FIREBASE_RULES_REVIEW.md](FIREBASE_RULES_REVIEW.md) records the source comparison: new coordination/donation collections are absent, staff request updates are unrestricted, and notification/response validation is insufficient. This explains why preview controls alone cannot activate the new workflow. The published version/date and an independent administrative fetch remain unverified. No rules were published.
+
+Staging build instructions and the later release procedure are in [STAGING_RELEASE.md](STAGING_RELEASE.md). The isolated builder refuses production identifiers; it was checked using synthetic configuration only. No hosted staging project or authenticated hosted test result exists yet.
+
 ## Source inspection
 
 - Fetched `origin/main`; it matches starting commit `c9d9fef4014e7d90cbd37bff772ffbe136da30a5` (November 15, 2026).
