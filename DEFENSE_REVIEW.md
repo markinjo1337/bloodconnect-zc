@@ -1,0 +1,118 @@
+# BloodConnect ZC defense repair review
+
+Review branch: `repair/defense-coordination`. No production deployment or live-data modification is authorized by this branch.
+
+## Mobile presentation update (November 26, 2026, UTC+8)
+
+At the user's request, the mobile header no longer requires sideways scrolling. At widths up to 800px, a labeled Menu button opens grouped navigation in the page; choosing a destination closes it, and Escape closes it and returns focus. The current section stays visible with the menu closed. Desktop navigation wraps instead of hiding destinations in a horizontal strip. All existing destinations and authorization remain intact.
+
+The light theme remains white cards on a light-gray canvas with the existing deep-red brand color. Mobile controls have 44px minimum button heights and 16px form text. Staff coordination is divided into three labeled, numbered sections (facility contact, received units, completion). The home reference table stacks its full contents on mobile. No medical values or workflow rules changed in this presentation update.
+
+All four layout checks passed, exercising actual menu opening/selection/closing, Escape focus, and navigation overflow at 360/390/768/1440px. Mobile home, expanded menu and staff detail screenshots were visually inspected. The unit/rules suites also passed. The first combined run had one transient emulator profile-read failure (the retry screen appeared), so authenticated workflows were rerun with fresh emulators rather than treating the failed run as passing. All six authenticated workflows passed on that fresh run. Fictitious-data home/menu/detail screenshots are generated under `artifacts/`. Prior security-fix commit `7992158` also passed [GitHub CI](https://github.com/markinjo1337/bloodconnect-zc/actions/runs/45673019705).
+
+## Follow-up review repairs (November 26, 2026, UTC+8)
+
+The user supplied an independent read-only review of PR head `4053d427`: public desktop/mobile pages and hash navigation passed without captured console errors. That review did not authenticate, test deployed writes, or inspect deployed rules. Its three source findings were reproduced in code and addressed:
+
+- Notifications now append exactly one eligible compatible donor per rule-validated transaction. Only staff, the request owner, or the eligible donor adding their own ID may append. Initial requests and blood-type confirmation start with an empty notification list, preventing preloaded recipients from bypassing validation. Acceptance rechecks current compatibility, availability, age window, hold, and donation interval, including for old alerts; decline remains possible. Missing/invalid eligibility fields fail closed. Partial alert failure preserves the saved request and reports the alert failure; deterministic IDs and membership checks make retries safe.
+- Coordination drafts are preserved independently across saves and snapshots, including checkbox state, input focus, errors, and the original revision. Retaining the original revision ensures an unsaved stale total cannot silently overwrite another staff member's save. Saved status summaries still refresh.
+- A donation-history create requires the donor's `lastDonation` and `donorType` to match the recording in the same atomic result. The date must be the current UTC date, matching the existing recording UI. An incomplete batch fails without creating history or changing the request.
+
+**Validation:** a clean `firebase emulators:exec` run passed all **25 tests** (5 unit, 10 rules, 10 browser), including all original workflows plus adversarial alert/acceptance writes, incomplete donation batches, cross-form draft preservation, stale revisions, and staff blood typing with recipient-by-recipient alerts. An earlier run lost the long-running Auth emulator and failed; the final clean run completed successfully without retries. `git diff --check` passed.
+
+No medical thresholds changed. The browser's 90-day interval now parses date-only last-donation values at UTC midnight, matching its existing UTC `today()` and the rules' server clock. Previously it used the browser's local midnight, creating a timezone-dependent boundary (up to the timezone offset). Eligibility remains preliminary; this is not clinical clearance.
+
+The Netlify PR preview exists at https://deploy-preview-1--bloodconnect-zc.netlify.app and still references production Firebase. Do not use it for fictitious write tests. These rules remain **undeployed**; a preview build alone does not activate them. There was no production release or live-data write.
+
+## Production-rule copy supplied by the owner
+
+The owner supplied their console rules on November 26, 2026 (UTC+8). [FIREBASE_RULES_REVIEW.md](FIREBASE_RULES_REVIEW.md) records the source comparison: new coordination/donation collections are absent, staff request updates are unrestricted, and notification/response validation is insufficient. This explains why preview controls alone cannot activate the new workflow. The published version/date and an independent administrative fetch remain unverified. No rules were published.
+
+Staging build instructions and the later release procedure are in [STAGING_RELEASE.md](STAGING_RELEASE.md). The isolated builder refuses production identifiers; it was checked using synthetic configuration only. No hosted staging project or authenticated hosted test result exists yet.
+
+## Source inspection
+
+- Fetched `origin/main`; it matches starting commit `c9d9fef4014e7d90cbd37bff772ffbe136da30a5` (November 15, 2026).
+- Only two commits exist at the starting revision: the initial README and one upload containing the app. There is no earlier app revision to selectively revert.
+- The source is root `index.html`, with inline CSS and JavaScript modules, Firebase JS SDK 11.0.2 from Google's CDN, and `config.js`. No React/Vue or application build pipeline existed. This repair retains the static app; npm dependencies are development/test tooling only.
+- Read-only comparison on November 25, 2026 verified `https://bloodconnect-zc.netlify.app/`: the deployed application HTML matches original `origin/main` apart from Netlify-injected comment/HUD script, and deployed `config.js` is byte-identical. The actual deployed Firestore rules remain unverified.
+- No separate attached documentation, ZIP, or screenshot file was available. `GABAY.md` and `README.md` were read as project context, not executed as setup instructions.
+
+## Diagnosed and repaired UI defects
+
+- Hash routes initialized `state.tab` before `state` existed. Reproduced on the original `#requests` page: startup error and persistent Loading screen. Hash initialization now runs after state construction.
+- A device's dark preference automatically changed the original theme. The document now explicitly defaults to light, retaining red branding, layout, forms, and navigation.
+- Form/grid children can shrink safely on narrow screens; progress text wraps. Navigation now uses a grouped disclosure menu on mobile and wrapping destinations on desktop (superseding the initial scrollable-header repair).
+- Snapshot refreshes no longer erase a form being edited, including the interval between focus and the first input event. Failed saves retain entered data and show an error; success messages follow successful commits.
+- A delayed startup message offers reload if Firebase/CDN services cannot be reached. A failed account-profile read now offers Retry account loading instead of incorrectly telling an existing donor that they are unregistered.
+
+## Coordination behavior
+
+- Staff-only queue: unresolved requests, urgency Critical → Urgent → Scheduled, then oldest posting first. No-stock/no-donor cases remain visible.
+- `coordination/{requestCode}` stores the latest facility, one of the five requested manual results, server timestamp, staff UID, and revision. It is staff-readable and staff-writable. This is not inventory or a reservation.
+- Request `responses` remain donor acceptances/declines. `donated` remains a list of recorded donors. New immutable `donations/{requestCode}_{donorCode}` records support owner-only donation history and deterministic deduplication.
+- Recording a donation transaction updates the donation history, request donor list, and donor's last donation date. It never changes received units or fulfills a request.
+- `verifiedReceivedUnits` is a staff-verified cumulative total, including supply obtained from a facility. It is an absolute number, never an increment. The form validates whole totals from zero through requested units, allowing a staff correction before closure. Receipt revision checks reject stale saves from another tab/staff member.
+- Fulfillment is a separate transaction requiring a known ABO/Rh request type, the full verified total, and explicit confirmation, with staff UID and server timestamp. Rules also enforce these conditions; a receipt write cannot simultaneously fulfill a request.
+- Old missing list/map fields are normalized. Missing received totals are zero; old donation counts are never used to infer received units. Legacy donor history is labeled as undated. Existing fulfilled records are left untouched and should be manually reviewed if their previous automatic fulfillment is questionable.
+- Consent, authentication, matching, preliminary eligibility, staff screening, directory editing, and ID lookup remain in the app. Private records remain restricted to their owner and staff. Knowing an ID does not grant private-record access.
+- No medical thresholds changed: age 18–65, minimum weight 50 kg, whole-blood interval 90 days; systolic 90–160, diastolic 60–100, pulse 50–100, temperature maximum 37.5°C. Existing ABO/Rh red-cell compatibility remains unchanged.
+- SMS is explicitly simulated. No donor-alert email, background notification, inventory feed, free-unit entitlement, fee waiver, or donation-priority promise is implemented.
+
+## Verification status
+
+**Prior baseline local `npm test`: all 21 tests passed on November 25, 2026** (5 unit, 8 Firestore rules, 8 browser). This includes the profile-error UI and focused-form refresh repair. Earlier failed runs are described below; no retry setting masks test failures.
+
+**21 tests passed in GitHub CI** against disposable Firebase Auth/Firestore emulators and Chromium: [successful run](https://github.com/markinjo1337/bloodconnect-zc/actions/runs/45615615332), tested revision `f6795bd4adf4b2022c526e8f8754daa73549362d`. Test evidence (screenshots and browser results) is available in that run's artifact. No production account or record was used.
+
+- 5 coordination unit tests: acceptance/donation separation, 2-of-3 rejection, full total plus explicit confirmation, old-record defaults, and urgency/time queue ordering.
+- 8 security-rules tests: staff-only writes, owner privacy, duplicate donation rejection, donor impersonation rejection, consent, legacy totals, unknown blood type, receipt revisions, and separate fulfillment confirmation. The Firestore rules compiled and ran in the emulator.
+- 4 Chromium layout sweeps at 360, 390, 768, and 1440 px: light theme under a dark OS preference, existing screens, new coordination controls, and legacy records. No document-wide horizontal overflow or uncaught page JavaScript errors in these fictitious fixture tests. Mobile home/detail and desktop request form were also visually inspected.
+- 4 authenticated browser workflows: full three-unit flow and donor history; no-stock follow-up and rejected save after staff-role revocation; stale receipt form rejection; request consent/ID lookup/screening; account creation and donor registration. Some scenarios share a test case.
+- Syntax and whitespace checks passed. The compatibility table and medical thresholds were compared directly with the original commit and are unchanged.
+- Development dependency audit after updating the test CLI/Node transport: zero high/critical, 14 moderate advisories. These npm dependencies are test/preview tooling; the production browser SDK remains 11.0.2. Do not interpret this as a security audit of the live deployment.
+
+| Requested scenario | Verified result |
+| --- | --- |
+| Three donor acceptances | Open, zero received units |
+| Record a donation | Open; history recorded, received total unchanged |
+| Two verified received units | One outstanding |
+| Attempt fulfillment at two | Rejected by UI transaction validation and Firestore rules |
+| Three verified received units | Still open until staff explicitly confirms fulfillment |
+| Three units plus explicit confirmation | Fulfilled |
+| No stock and no donors | Open and visible in the staff queue |
+| Non-staff staff-only write | Denied; failed-save UI does not show success |
+
+The initial local emulator setup was blocked by hostname policy; the user updated the environment and local Auth/Firestore emulators now run. Local browser runs exposed a transient profile-read failure and a focused sign-in form refresh race; the app now provides an explicit retry state. The authenticated workflow rerun passed all four tests, and the updated layout checks passed all four viewports. CI also passed the strengthened unauthorized-write fixtures at revision `4873c7e9941c130fe097459f0a7902c71bc6ed76` ([run](https://github.com/markinjo1337/bloodconnect-zc/actions/runs/45615921080)).
+
+Still unverified: deployed Firestore rules, real Firebase accounts, live records, physical mobile devices, and separately mentioned attached-document screenshots. The authenticated demo can be started on port 3000 with the local emulators using the commands below. The user’s current Codex client does not expose the shared Cloud Desktop viewer. An externally forwarded HTTP preview URL is not configured.
+
+## Preview and repeatable tests
+
+The development preview bundles the existing app with a **demo-only** Firebase configuration and proxies SDK calls solely to local emulators. It does not load `config.js` or contact the production Firebase project. The yellow banner identifies fictitious data. Keep this preview server private; do not deploy it as production hosting.
+
+```sh
+npm ci
+npm run emulators
+```
+
+In another terminal:
+
+```sh
+npm run seed:demo
+npm run preview
+```
+
+Preview port: **3000**. Use `http://localhost:3000` only in a browser on the computer running the preview server, or through configured port forwarding. This address refers to the cloud computer, not the user’s own machine. An HTTP Preview portal can optionally provide a forwarded URL.
+
+Fictitious accounts: `staff@example.test`, `requester@example.test`, `donor1@example.test` through `donor3@example.test`, and `outsider@example.test`. Password: `Defense27!`.
+
+While the emulators run, `npm test` runs unit, security-rules, and browser checks. Playwright starts the preview servers if needed. `npm run test:layout` can run independently using an explicitly injected layout fixture; it does not verify Auth or database saves. Screenshots and browser JSON results go to ignored `artifacts/`.
+
+The seed script resets only `demo-bloodconnect-zc` on `127.0.0.1`; the rules suite uses `demo-bloodconnect-rules`. Never point these helpers at a real project. GitHub Actions runs the same suite against disposable emulators and uploads test evidence.
+
+## Documentation differences and release prerequisites
+
+`GABAY.md` predates these changes: it lists four app files (now also ship `coordination.js`), says an empty directory seeds automatically (now an explicit staff action), and does not describe receipt verification, coordination, or donation history. The request-note label now correctly identifies its existing private/staff audience. It correctly describes Firebase roles, public/private records, and simulated SMS. Its deploy instructions have not been executed. The separately mentioned attached documentation must still be provided for a full discrepancy/screenshot comparison.
+
+Before any later production release: review the verified live-source comparison and passing emulator/CI evidence, review actual deployed rules, and plan the app/rules release together. Existing rules do not protect the new workflow; hiding controls is insufficient. There is no data migration or inferred backfill in this branch. Do not merge/deploy while these verification items remain open.

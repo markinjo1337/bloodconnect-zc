@@ -1,0 +1,5 @@
+node_modules/
+artifacts/
+.preview/
+*-debug.log
+.firebase/

@@ -1,0 +1,39 @@
+{
+  "name": "bloodconnect-zc",
+  "version": "1.0.0",
+  "description": "BloodConnect ZC: Blood donor matching and emergency notification system for Zamboanga City (IT 312, Universidad de Zamboanga)",
+  "scripts": {
+    "preview": "node scripts/preview.cjs",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-bloodconnect-zc",
+    "test:unit": "node --test tests/coordination.test.mjs",
+    "test:rules": "node --test tests/rules.test.cjs",
+    "test:browser": "playwright test",
+    "seed:demo": "node scripts/seed-demo.cjs",
+    "test": "npm run test:unit && npm run test:rules && npm run test:browser",
+    "preview:layout": "node scripts/preview.cjs --layout",
+    "test:layout": "playwright test tests/layout.spec.js",
+    "test:workflow": "playwright test tests/workflow.spec.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markinjo1337/bloodconnect-zc.git"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/markinjo1337/bloodconnect-zc/issues"
+  },
+  "homepage": "https://github.com/markinjo1337/bloodconnect-zc#readme",
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "@playwright/test": "^1.56.1",
+    "esbuild": "^0.25.12",
+    "firebase": "^11.0.2",
+    "firebase-tools": "15.37.0"
+  },
+  "private": true,
+  "overrides": {
+    "@grpc/grpc-js": "1.14.7"
+  }
+}
